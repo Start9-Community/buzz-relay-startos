@@ -14,11 +14,13 @@ const shape = z.object({
   // provides it via the set-owner-pubkey action (see actions/setOwnerPubkey.ts,
   // gated by the critical task in init/watchOwnerPubkey.ts).
   ownerPubkey: z.string().optional().catch(undefined),
-  // Permanent hostname (bare, no scheme/port) the relay is reachable at —
-  // chosen once via actions/setRelayUrl.ts, gated by init/watchRelayUrl.ts.
-  // Treated as permanent (like Synapse's server_name) because Buzz's tenant
-  // resolution keys off RELAY_URL's host (see Phase 0 spike notes).
-  relayHostname: z.string().optional().catch(undefined),
+  // Full ws(s):// URL the relay is currently reachable at (LAN .local by
+  // default, or Tor/clearnet/Tailscale/StartTunnel/Cloudflare once the user
+  // enables one of those gateways and picks it). Auto-defaulted and kept in
+  // sync by init/watchRelayUrl.ts; changeable anytime via
+  // actions/setRelayUrl.ts, matching the ghost-startos/gitea-startos
+  // "changeable URL" convention rather than a permanent one-time choice.
+  relayUrl: z.string().optional().catch(undefined),
 })
 
 export const storeJson = FileHelper.json({ base: sdk.volumes.main, subpath: 'store.json' }, shape)

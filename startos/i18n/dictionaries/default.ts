@@ -23,11 +23,11 @@ const dict = {
   // interfaces.ts, actions/setRelayUrl.ts, init/watchRelayUrl.ts
   'WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients': 17,
   'Set Relay Address/URL': 18,
-  'Choose the permanent address this relay is reachable at. Buzz Desktop and invite links use this to connect.': 19,
-  'This cannot be changed later without breaking existing invite links and connected clients. Enable the LAN, Tor, or clearnet address you want to use as primary under the Interfaces tab first.': 20,
+  'Choose which address Buzz Desktop and invite links should use to reach this relay.': 19,
+  'Changing this does not update links you already shared — anyone using the old address will need the new one.': 20,
   'Address/URL': 21,
-  'The hostname clients will use to reach this relay.': 22,
-  'Choose the permanent address this relay is reachable at before it can start': 23,
+  'The address clients will use to reach this relay.': 22,
+  'Your relay address changed because the previous one is no longer available': 23,
 } as const
 
 /**

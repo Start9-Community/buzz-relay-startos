@@ -1,5 +1,4 @@
-import { T } from '@start9labs/start-sdk'
-import { relayHostId, relayInterfaceId } from '../interfaces'
+import { getRelayUrls } from '../interfaces'
 import { i18n } from '../i18n'
 import { storeJson } from '../fileModels/store.json'
 import { sdk } from '../sdk'
@@ -7,46 +6,31 @@ import { sdk } from '../sdk'
 const { InputSpec, Value } = sdk
 
 const inputSpec = InputSpec.of({
-  hostname: Value.dynamicSelect(async ({ effects }) => getHostnames(effects)),
+  url: Value.dynamicSelect(async ({ effects }) => {
+    const urls = await getRelayUrls(effects)
+    return {
+      name: i18n('Address/URL'),
+      description: i18n('The address clients will use to reach this relay.'),
+      warning: null,
+      values: urls.reduce((obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }), {}),
+      default: '',
+    }
+  }),
 })
 
 export const setRelayUrl = sdk.Action.withInput(
   'set-relay-url',
   async () => ({
     name: i18n('Set Relay Address/URL'),
-    description: i18n('Choose the permanent address this relay is reachable at. Buzz Desktop and invite links use this to connect.'),
-    warning: i18n(
-      'This cannot be changed later without breaking existing invite links and connected clients. Enable the LAN, Tor, or clearnet address you want to use as primary under the Interfaces tab first.',
-    ),
-    allowedStatuses: 'only-stopped',
+    description: i18n('Choose which address Buzz Desktop and invite links should use to reach this relay.'),
+    warning: i18n('Changing this does not update links you already shared — anyone using the old address will need the new one.'),
+    allowedStatuses: 'any',
     group: null,
-    visibility: 'hidden',
+    visibility: 'enabled',
   }),
   inputSpec,
-  async () => ({}),
+  async ({ effects }) => ({ url: (await storeJson.read(s => s.relayUrl).once()) || undefined }),
   async ({ effects, input }) => {
-    await storeJson.merge(effects, { relayHostname: input.hostname })
+    await storeJson.merge(effects, { relayUrl: input.url })
   },
 )
-
-async function getHostnames(effects: T.Effects) {
-  const hostnames =
-    (await sdk.host
-      .getOwn(effects, relayHostId, host => {
-        const iface =
-          host &&
-          Object.values(host.bindings)
-            .flatMap(b => Object.values(b.interfaces))
-            .find(i => i.id === relayInterfaceId)
-        return iface ? iface.addressInfo.filter({ kind: 'domain' }).hostnames.map(h => h.hostname) : []
-      })
-      .once()) || []
-
-  return {
-    name: i18n('Address/URL'),
-    description: i18n('The hostname clients will use to reach this relay.'),
-    warning: null,
-    values: hostnames.reduce((obj: Record<string, string>, hostname: string) => ({ ...obj, [hostname]: hostname }), {}),
-    default: hostnames[0] || '',
-  }
-}
