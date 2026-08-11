@@ -189,10 +189,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
             BUZZ_REQUIRE_AUTH_TOKEN: 'true',
             BUZZ_REQUIRE_RELAY_MEMBERSHIP: 'true',
             BUZZ_ALLOW_NIP_OA_AUTH: 'true',
-            // TODO(Phase 3): sourced from store.json once the owner-pubkey
-            // setup Task/Action exists. Empty for now — the relay will fail
-            // its own bootstrap_owner check and crash-loop until it's set,
-            // which is expected at this stage.
+            // Set via the set-owner-pubkey action, gated by a critical setup
+            // task (init/watchOwnerPubkey.ts) — the service can't reach this
+            // daemon until it's set.
             RELAY_OWNER_PUBKEY: ownerPubkey,
             // TODO(Phase 4): derive from the resolved interface hostname
             // (ws:// on LAN, wss:// once TLS-terminated via Tor/clearnet)
