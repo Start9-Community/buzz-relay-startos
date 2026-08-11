@@ -3,9 +3,15 @@ export const DEFAULT_LANG = 'en_US'
 const dict = {
   // main.ts
   'Starting Buzz Relay!': 0,
-  'Web Interface': 1,
-  'The web interface is ready': 2,
-  'The web interface is not ready': 3,
+  'PostgreSQL is ready': 1,
+  'Waiting for PostgreSQL to be ready': 2,
+  'Redis is ready': 3,
+  'Waiting for Redis to be ready': 4,
+  'MinIO is ready': 5,
+  'Waiting for MinIO to be ready': 6,
+  'Buzz Relay': 7,
+  'Buzz Relay is ready': 8,
+  'Buzz Relay is not ready': 9,
 } as const
 
 /**
