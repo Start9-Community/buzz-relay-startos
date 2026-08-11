@@ -1,7 +1,7 @@
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { storeJson } from './fileModels/store.json'
-import { MINIO_BUCKET, MINIO_PORT, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
+import { MINIO_BUCKET, MINIO_PORT, POSTGRES_DB, POSTGRES_PATH, POSTGRES_USER, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
 
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Buzz Relay!'))
@@ -25,9 +25,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
     effects,
     { imageId: 'postgres' },
     sdk.Mounts.of().mountVolume({
-      volumeId: 'main',
-      subpath: 'postgresql',
-      mountpoint: '/var/lib/postgresql',
+      volumeId: 'db',
+      subpath: null,
+      mountpoint: POSTGRES_PATH,
       readonly: false,
     }),
     'postgres',
@@ -91,8 +91,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
         exec: {
           command: sdk.useEntrypoint(['-c', 'listen_addresses=127.0.0.1']),
           env: {
-            POSTGRES_DB: 'buzz',
-            POSTGRES_USER: 'buzz',
+            POSTGRES_DB: POSTGRES_DB,
+            POSTGRES_USER: POSTGRES_USER,
             POSTGRES_PASSWORD: pgPassword,
           },
         },
@@ -105,9 +105,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
               '-h',
               '127.0.0.1',
               '-U',
-              'buzz',
+              POSTGRES_USER,
               '-d',
-              'buzz',
+              POSTGRES_DB,
             ])
             return result.exitCode === 0
               ? { result: 'success', message: i18n('PostgreSQL is ready') }
@@ -173,7 +173,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           env: {
             BUZZ_BIND_ADDR: `0.0.0.0:${RELAY_PORT}`,
             BUZZ_HEALTH_PORT: String(RELAY_HEALTH_PORT),
-            DATABASE_URL: `postgres://buzz:${pgPassword}@127.0.0.1:5432/buzz`,
+            DATABASE_URL: `postgres://${POSTGRES_USER}:${pgPassword}@127.0.0.1:5432/${POSTGRES_DB}`,
             REDIS_URL: `redis://:${redisPassword}@127.0.0.1:6379`,
             BUZZ_S3_ENDPOINT: `http://127.0.0.1:${MINIO_PORT}`,
             BUZZ_S3_ADDRESSING_STYLE: 'path',

@@ -10,7 +10,10 @@ export const manifest = setupManifest({
   marketingUrl: 'https://buzz.xyz',
   donationUrl: null,
   description: { short, long },
-  volumes: ['main'],
+  // 'db' is dedicated to Postgres (unshared) -- sdk.Backups.withPgDump()
+  // mounts a dbVolume at its root with no subpath, so Postgres can't share
+  // 'main' the way redis/minio/git do. See backups.ts.
+  volumes: ['main', 'db'],
   images: {
     // Confirmed multi-arch (amd64 + arm64) via registry manifest inspection.
     // ':main' tracks pre-release builds — there is no tagged semver release yet
