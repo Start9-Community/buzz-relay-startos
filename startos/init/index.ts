@@ -6,6 +6,7 @@ import { actions } from '../actions'
 import { restoreInit } from '../backups'
 import { seedFiles } from './seedFiles'
 import { watchOwnerPubkey } from './watchOwnerPubkey'
+import { watchRelayUrl } from './watchRelayUrl'
 
 export const init = sdk.setupInit(
   restoreInit,
@@ -15,6 +16,7 @@ export const init = sdk.setupInit(
   actions,
   seedFiles,
   watchOwnerPubkey,
+  watchRelayUrl,
 )
 
 export const uninit = sdk.setupUninit(versionGraph)

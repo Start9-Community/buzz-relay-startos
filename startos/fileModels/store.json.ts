@@ -14,6 +14,11 @@ const shape = z.object({
   // provides it via the set-owner-pubkey action (see actions/setOwnerPubkey.ts,
   // gated by the critical task in init/watchOwnerPubkey.ts).
   ownerPubkey: z.string().optional().catch(undefined),
+  // Permanent hostname (bare, no scheme/port) the relay is reachable at —
+  // chosen once via actions/setRelayUrl.ts, gated by init/watchRelayUrl.ts.
+  // Treated as permanent (like Synapse's server_name) because Buzz's tenant
+  // resolution keys off RELAY_URL's host (see Phase 0 spike notes).
+  relayHostname: z.string().optional().catch(undefined),
 })
 
 export const storeJson = FileHelper.json({ base: sdk.volumes.main, subpath: 'store.json' }, shape)

@@ -14,6 +14,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const relayPrivateKey = store?.relayPrivateKey ?? ''
   const gitHookHmacSecret = store?.gitHookHmacSecret ?? ''
   const ownerPubkey = store?.ownerPubkey ?? ''
+  const relayHostname = store?.relayHostname ?? ''
 
   /**
    * ======================== PostgreSQL sidecar ========================
@@ -193,10 +194,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
             // task (init/watchOwnerPubkey.ts) — the service can't reach this
             // daemon until it's set.
             RELAY_OWNER_PUBKEY: ownerPubkey,
-            // TODO(Phase 4): derive from the resolved interface hostname
-            // (ws:// on LAN, wss:// once TLS-terminated via Tor/clearnet)
-            // instead of this loopback placeholder.
-            RELAY_URL: `ws://127.0.0.1:${RELAY_PORT}`,
+            // Set via the set-relay-url action, gated by a critical setup
+            // task (init/watchRelayUrl.ts). Permanent by design — StartOS
+            // TLS-terminates every domain-kind address at its edge (see
+            // interfaces.md), so wss:// is correct here even though the
+            // container itself only ever speaks plain ws.
+            RELAY_URL: `wss://${relayHostname}:${RELAY_PORT}`,
+            BUZZ_DOMAIN: relayHostname,
+            BUZZ_MEDIA_BASE_URL: `https://${relayHostname}/media`,
+            BUZZ_CORS_ORIGINS: `https://${relayHostname}`,
           },
         },
         ready: {
