@@ -28,6 +28,12 @@ const dict = {
   'Address/URL': 21,
   'The address clients will use to reach this relay.': 22,
   'Your relay address changed because the previous one is no longer available': 23,
+  // main.ts: media-storage health check, first-ready notification
+  'Media & Git Storage': 24,
+  'Media and git storage are reachable': 25,
+  'Media and git storage are unreachable — uploads and git operations will fail': 26,
+  'Buzz Relay is Ready': 27,
+  'Connect Buzz Desktop using the address on the Interfaces tab.': 28,
 } as const
 
 /**

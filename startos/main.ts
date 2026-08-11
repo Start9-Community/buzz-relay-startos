@@ -1,7 +1,31 @@
+import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { storeJson } from './fileModels/store.json'
 import { MINIO_BUCKET, MINIO_PORT, POSTGRES_DB, POSTGRES_PATH, POSTGRES_USER, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
+
+// Fires once, the first time the relay daemon's own readiness check
+// succeeds -- gated on store.json's firstReadyNotified so a health check
+// that polls every 30s doesn't repost it forever. See recipe-notification.md
+// ("gate posts behind a one-shot condition").
+async function notifyFirstReady(effects: T.Effects, relayUrl: string, ownerPubkey: string) {
+  const alreadyNotified = await storeJson.read(s => s.firstReadyNotified).once()
+  if (alreadyNotified) return
+  await storeJson.merge(effects, { firstReadyNotified: true })
+  await sdk.notification.create(effects, {
+    level: 'success',
+    title: i18n('Buzz Relay is Ready'),
+    message: i18n('Connect Buzz Desktop using the address on the Interfaces tab.'),
+    data: [
+      '## Connection details',
+      '',
+      `- **Address:** ${relayUrl}`,
+      `- **Owner pubkey:** ${ownerPubkey}`,
+      '',
+      'Open Buzz Desktop, choose "Join a Community," and paste the address above.',
+    ].join('\n'),
+  })
+}
 
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Buzz Relay!'))
@@ -208,15 +232,34 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
         ready: {
           display: i18n('Buzz Relay'),
-          fn: () =>
-            sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`, {
+          fn: async () => {
+            const result = await sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`, {
               successMessage: i18n('Buzz Relay is ready'),
               errorMessage: i18n('Buzz Relay is not ready'),
-            }),
+            })
+            if (result.result === 'success') {
+              await notifyFirstReady(effects, relayUrl, ownerPubkey)
+            }
+            return result
+          },
           // First boot runs migrations before the health port comes up.
           gracePeriod: 60_000,
         },
         requires: ['postgres', 'redis', 'minio-init'],
+      })
+      // Standalone: /_readiness above only checks Postgres/Redis (see Phase 0
+      // spike notes), so a broken S3 connection is otherwise invisible to the
+      // user even though it breaks every media upload and git push.
+      .addHealthCheck('media-storage', {
+        ready: {
+          display: i18n('Media & Git Storage'),
+          fn: () =>
+            sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${MINIO_PORT}/minio/health/live`, {
+              successMessage: i18n('Media and git storage are reachable'),
+              errorMessage: i18n('Media and git storage are unreachable — uploads and git operations will fail'),
+            }),
+        },
+        requires: ['buzz-relay'],
       })
   )
 })

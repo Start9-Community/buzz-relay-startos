@@ -21,6 +21,9 @@ const shape = z.object({
   // actions/setRelayUrl.ts, matching the ghost-startos/gitea-startos
   // "changeable URL" convention rather than a permanent one-time choice.
   relayUrl: z.string().optional().catch(undefined),
+  // One-shot gate for the "relay is ready" notification (main.ts) -- keeps a
+  // polling health check from reposting it every 30s after the first success.
+  firstReadyNotified: z.boolean().catch(false),
 })
 
 export const storeJson = FileHelper.json({ base: sdk.volumes.main, subpath: 'store.json' }, shape)
