@@ -104,6 +104,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
       subpath: 'git',
       mountpoint: '/data/git',
       readonly: false,
+      // The image runs as a non-root 'buzz' user (uid 1000, gid 1000 --
+      // see its Dockerfile) and pre-chowns /data/git to buzz:buzz, but our
+      // volume mount shadows that with StartOS's root-owned (uid 0) volume
+      // storage. Without remapping, buzz-relay can't write its own git pack
+      // cache: "Permission denied (os error 13)" on BUZZ_GIT_PACK_CACHE_PATH.
+      idmap: [{ fromId: 0, toId: 1000 }],
     }),
     'buzz-relay',
   )
