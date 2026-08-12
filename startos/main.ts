@@ -104,12 +104,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
       subpath: 'git',
       mountpoint: '/data/git',
       readonly: false,
-      // The image runs as a non-root 'buzz' user (uid 1000, gid 1000 --
-      // see its Dockerfile) and pre-chowns /data/git to buzz:buzz, but our
-      // volume mount shadows that with StartOS's root-owned (uid 0) volume
-      // storage. Without remapping, buzz-relay can't write its own git pack
-      // cache: "Permission denied (os error 13)" on BUZZ_GIT_PACK_CACHE_PATH.
-      idmap: [{ fromId: 0, toId: 1000 }],
     }),
     'buzz-relay',
   )
@@ -196,6 +190,22 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
         requires: ['minio'],
       })
+      // One-shot: the image runs as a non-root 'buzz' user (uid 1000, gid
+      // 1000 -- see its Dockerfile) and pre-chowns /data/git to buzz:buzz,
+      // but our volume mount shadows that with StartOS's own volume storage,
+      // so buzz-relay can't write its git pack cache without this. An
+      // idmap on the mount ({fromId: 0, toId: 1000}) did NOT fix it in
+      // practice (tested on a real box) -- an explicit chown as root, the
+      // same pattern ghost-startos/nextcloud-startos use, does. Runs every
+      // start; idempotent.
+      .addOneshot('chown-git', {
+        subcontainer: relaySub,
+        exec: {
+          command: ['chown', '-R', '1000:1000', '/data/git'],
+          user: 'root',
+        },
+        requires: [],
+      })
       .addDaemon('buzz-relay', {
         subcontainer: relaySub,
         exec: {
@@ -251,7 +261,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
           // First boot runs migrations before the health port comes up.
           gracePeriod: 60_000,
         },
-        requires: ['postgres', 'redis', 'minio-init'],
+        requires: ['postgres', 'redis', 'minio-init', 'chown-git'],
       })
       // Standalone: /_readiness above only checks Postgres/Redis (see Phase 0
       // spike notes), so a broken S3 connection is otherwise invisible to the
