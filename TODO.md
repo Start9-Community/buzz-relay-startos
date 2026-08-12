@@ -1,55 +1,35 @@
-# TODO — bring Buzz Relay from template to release-ready
+# TODO — Buzz Relay
 
-This package was scaffolded as a barebones clone — one daemon running the hello-world
-image with a port-listening health check, no interface yet, no dependencies. The arbitrary ids are named
-`example-*` (e.g. `example-volume`, `example-image`, `example-daemon`) to signal that you
-rename them freely; they are not required namings. Work the list top to bottom; it takes
-you from the clone to a release-ready package. Consult the packaging guide as you go
-(`start-technologies/projects/start-sdk/docs/src/recipes.md` is the intent index). Remove items as you finish
-them, and add items when you defer work.
+Core packaging is done and verified on a real StartOS box: the relay starts,
+reaches healthy, and a real Buzz Desktop client connects through it. What's
+left is feature-complete parity with Exergy's own production deployment
+(see the "Buzz Relay — Infrastructure & Configuration" doc) and general polish.
 
-## Identity & metadata
+## In progress
 
-- [ ] `startos/manifest/index.ts`: fill in `packageRepo`, `upstreamRepo`, and
-      `marketingUrl` / `donationUrl` (or remove the latter two). Confirm the `license`.
-- [ ] Replace the placeholder `LICENSE` file with your package's license, matching the
-      `license` field in `startos/manifest/index.ts`.
-- [ ] `startos/manifest/i18n.ts`: write the short and long descriptions, then translate
-      them into the other locales.
-- [ ] Replace `icon.svg` with a real Buzz Relay icon (≤ 40 KiB).
+- [ ] **Mobile pairing.** Upstream ships a separate `buzz-pair-relay` sidecar
+      (a third binary in the same image) for QR-code mobile pairing — this
+      package doesn't run it yet, so pairing 404s. Needs: a `pairing-relay`
+      daemon (`buzz-relay` image, entrypoint override), a second bound
+      interface, and `BUZZ_PAIRING_RELAY_URL` wired onto the main relay
+      daemon.
+- [ ] **Member management.** `buzz-admin add-member`/`remove-member`/`list-members`
+      (bundled in the same image) aren't exposed as StartOS actions yet —
+      adding/removing anyone beyond the owner currently requires Buzz
+      Desktop's own admin flows. Add three actions using
+      `sdk.SubContainer.withTemp()` (see `recipe-reset-password.md`'s
+      documented pattern for admin-CLI actions); reuse `nostr.ts` for
+      pubkey validation.
 
-## The service
+## Deferred, not urgent
 
-- [ ] Rename the `example-*` placeholder ids to fit your service. Keep them consistent
-      across `startos/manifest/index.ts` (the `example-image` key and `example-volume` entry),
-      `startos/main.ts` (`imageId`, `volumeId`, the daemon and subcontainer ids), and
-      `startos/backups.ts` (the backed-up volume).
-- [ ] Replace the hello-world image with your service's image: set `images.*.source.dockerTag`
-      (or add a `Dockerfile`) in `startos/manifest/index.ts`, and update the `exec.command` in
-      `startos/main.ts`. (`UPDATING.md` should document how you track the version.)
-- [ ] `startos/main.ts`: define the daemon(s) and any oneshots. The example daemon ships a
-      `checkPortListening` health check on `uiPort` (`startos/utils.ts`) — point `uiPort` at the
-      port your service listens on, or swap in another check. Keep only the i18n keys in
-      `startos/i18n/dictionaries` that you actually reference.
-- [ ] Interfaces: `startos/interfaces.ts` ships wired into `startos/init/index.ts` but
-      returns an empty list. If the service exposes a network interface, bind a port and
-      export the interface there (see `start-technologies/projects/start-sdk/docs/src/interfaces.md`).
-- [ ] `startos/backups.ts`: choose what to back up.
-- [ ] `startos/dependencies.ts`: declare any dependencies (or confirm none).
-- [ ] `startos/actions/`: add user-facing actions / config as needed.
-- [ ] `startos/init/`: add install / restore setup if the service needs it.
-- [ ] `startos/versions/`: set the initial version string and release notes.
-
-## Docs
-
-- [ ] Write `README.md` (per `start-technologies/projects/start-sdk/docs/src/writing-readmes.md`).
-- [ ] Write `instructions.md` (per `start-technologies/projects/start-sdk/docs/src/writing-instructions.md`).
-- [ ] Fill in `UPDATING.md` (upstream-version tracking).
-
-## Build, test, ship
-
-- [ ] First test build: `make` (or `start-cli s9pk pack`); fix any `tsc` / pack errors.
-- [ ] Install on a StartOS box and verify the service runs (and is reachable, once it
-      exposes an interface).
-- [ ] Backup / restore sanity check.
-- [ ] Review the README and instructions one more time against actual behavior.
+- [ ] `UPDATING.md` — document how to check for a new upstream image tag/version
+      once one exists (`ghcr.io/block/buzz` has no tagged release yet, only
+      `:main`).
+- [ ] Consider exposing `buzz-admin migrate` as an optional repair action
+      (not needed for normal operation — migrations already run automatically
+      on every start).
+- [ ] Revisit whether MinIO can be swapped for a lighter S3-compatible server
+      (SeaweedFS, Garage) — deferred in the Phase 0 spike pending confirmation
+      that the alternative correctly returns HTTP 412 on conditional-write
+      conflicts, which Buzz's git object store relies on.
