@@ -1,3 +1,4 @@
+import { decodeBech32 } from '../nostr'
 import { i18n } from '../i18n'
 import { storeJson } from '../fileModels/store.json'
 import { sdk } from '../sdk'
@@ -8,19 +9,19 @@ const inputSpec = InputSpec.of({
   ownerPubkey: Value.text({
     name: i18n('Owner Nostr Public Key'),
     description: i18n(
-      'The 64-character hex-encoded Nostr public key of the relay owner. This is the only identity that can administer this relay and approve new members.',
+      "The relay owner's Nostr identity: paste your npub (starts with npub1) or its 64-character hex public key. This is the only identity that can administer this relay and approve new members.",
     ),
     required: true,
     masked: false,
     default: null,
     patterns: [
       {
-        regex: '^[0-9a-fA-F]{64}$',
-        description: i18n('Must be exactly 64 hexadecimal characters'),
+        regex: '^([0-9a-fA-F]{64}|npub1[a-z0-9]{58}|nsec1[a-z0-9]{58})$',
+        description: i18n('Must be an npub1... address or a 64-character hex key'),
       },
     ],
-    minLength: 64,
-    maxLength: 64,
+    minLength: null,
+    maxLength: null,
   }),
 })
 
@@ -40,6 +41,24 @@ export const setOwnerPubkey = sdk.Action.withInput(
     return { ownerPubkey: current ?? '' }
   },
   async ({ effects, input }) => {
-    await storeJson.merge(effects, { ownerPubkey: input.ownerPubkey.toLowerCase() })
+    const raw = input.ownerPubkey.trim()
+    const lower = raw.toLowerCase()
+
+    let hex: string
+    if (lower.startsWith('nsec1')) {
+      // Deliberately not i18n-wrapped -- thrown errors are developer-facing
+      // diagnostics, not translated UI copy (see actions.md conventions).
+      throw new Error('That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.')
+    } else if (lower.startsWith('npub1')) {
+      const decoded = decodeBech32(lower)
+      if (decoded.prefix !== 'npub') {
+        throw new Error(`Expected an npub1... address, got a ${decoded.prefix}1... address.`)
+      }
+      hex = decoded.hex
+    } else {
+      hex = lower
+    }
+
+    await storeJson.merge(effects, { ownerPubkey: hex })
   },
 )

@@ -14,8 +14,8 @@ const dict = {
   'Buzz Relay is not ready': 9,
   // actions/setOwnerPubkey.ts, init/watchOwnerPubkey.ts
   'Owner Nostr Public Key': 10,
-  'The 64-character hex-encoded Nostr public key of the relay owner. This is the only identity that can administer this relay and approve new members.': 11,
-  'Must be exactly 64 hexadecimal characters': 12,
+  "The relay owner's Nostr identity: paste your npub (starts with npub1) or its 64-character hex public key. This is the only identity that can administer this relay and approve new members.": 11,
+  'Must be an npub1... address or a 64-character hex key': 12,
   'Set Relay Owner': 13,
   'Set the Nostr public key that owns and administers this relay. Required before the relay can start.': 14,
   'Changing this after the relay has already started is not supported. Stop the service first.': 15,
