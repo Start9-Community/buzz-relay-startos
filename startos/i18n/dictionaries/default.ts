@@ -34,6 +34,34 @@ const dict = {
   'Media and git storage are unreachable — uploads and git operations will fail': 26,
   'Buzz Relay is Ready': 27,
   'Connect Buzz Desktop using the address on the Interfaces tab.': 28,
+  // interfaces.ts: mobile pairing interface
+  'Mobile Pairing': 29,
+  'Pairing endpoint the Buzz mobile app connects to when scanning a QR code': 30,
+  // main.ts: pairing-relay daemon ready check
+  'Mobile pairing is ready': 31,
+  'Mobile pairing is not ready': 32,
+  // actions/listMembers.ts, addMember.ts, removeMember.ts, buzzAdmin.ts
+  'List Members': 33,
+  'Show everyone currently registered on this relay, and their role.': 34,
+  'No members are registered yet, other than the owner.': 35,
+  'Relay Members': 36,
+  'Current relay membership.': 37,
+  'Member Nostr Public Key': 38,
+  'The Nostr identity to add. Paste an npub (starts with npub1) or its 64-character hex public key.': 39,
+  'Role': 40,
+  'Admins can add and remove other members; members can only read and write.': 41,
+  'Member': 42,
+  'Admin': 43,
+  'Add Member': 44,
+  'Register a new Nostr identity on this relay.': 45,
+  'Member Added': 46,
+  'buzz-admin result:': 47,
+  'Result': 48,
+  'Who to remove. The relay owner is never listed here -- change RELAY_OWNER_PUBKEY instead.': 49,
+  'Remove Member': 50,
+  'Remove a Nostr identity from this relay.': 51,
+  'This immediately revokes their access. They can be re-added later with Add Member.': 52,
+  'Member Removed': 53,
 } as const
 
 /**
