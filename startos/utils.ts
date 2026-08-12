@@ -4,6 +4,9 @@
 // interface (that's Phase 4: interfaces.ts + URL wiring).
 export const RELAY_PORT = 3000
 export const RELAY_HEALTH_PORT = 8080
+// NIP-AB mobile device pairing sidecar (buzz-pair-relay, bundled in the same
+// image). Matches upstream's own compose.pairing.yml default port.
+export const PAIRING_PORT = 5000
 
 export const MINIO_PORT = 9000
 export const MINIO_BUCKET = 'buzz-media'

@@ -2,7 +2,7 @@ import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { storeJson } from './fileModels/store.json'
-import { MINIO_BUCKET, MINIO_PORT, POSTGRES_DB, POSTGRES_PATH, POSTGRES_USER, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
+import { MINIO_BUCKET, MINIO_PORT, PAIRING_PORT, POSTGRES_DB, POSTGRES_PATH, POSTGRES_USER, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
 
 // Fires once, the first time the relay daemon's own readiness check
 // succeeds -- gated on store.json's firstReadyNotified so a health check
@@ -40,6 +40,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const ownerPubkey = store?.ownerPubkey ?? ''
   const relayUrl = store?.relayUrl ?? ''
   const relayHostname = relayUrl ? new URL(relayUrl).hostname : ''
+  const pairingUrl = store?.pairingUrl ?? ''
 
   /**
    * ======================== PostgreSQL sidecar ========================
@@ -107,6 +108,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
     }),
     'buzz-relay',
   )
+
+  /**
+   * ======================== Mobile pairing sidecar ========================
+   * A third binary bundled in the same image (buzz-pair-relay), for NIP-AB
+   * QR-code mobile device pairing. No persistent storage of its own.
+   */
+  const pairingSub = sdk.SubContainer.of(effects, { imageId: 'buzz-relay' }, sdk.Mounts.of(), 'pairing-relay')
 
   return (
     sdk.Daemons.of(effects)
@@ -206,6 +214,24 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
         requires: [],
       })
+      .addDaemon('pairing-relay', {
+        subcontainer: pairingSub,
+        exec: {
+          command: ['/usr/local/bin/buzz-pair-relay'],
+          env: {
+            BUZZ_PAIR_RELAY_BIND_ADDR: `0.0.0.0:${PAIRING_PORT}`,
+          },
+        },
+        ready: {
+          display: i18n('Mobile Pairing'),
+          fn: () =>
+            sdk.healthCheck.checkPortListening(effects, PAIRING_PORT, {
+              successMessage: i18n('Mobile pairing is ready'),
+              errorMessage: i18n('Mobile pairing is not ready'),
+            }),
+        },
+        requires: [],
+      })
       .addDaemon('buzz-relay', {
         subcontainer: relaySub,
         exec: {
@@ -244,6 +270,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
             BUZZ_DOMAIN: relayHostname,
             BUZZ_MEDIA_BASE_URL: `https://${relayHostname}/media`,
             BUZZ_CORS_ORIGINS: `https://${relayHostname}`,
+            // Advertised in the relay's NIP-11 doc so clients know where to
+            // reach the mobile pairing sidecar. Auto-defaulted the same way
+            // as relayUrl (see init/watchPairingUrl.ts).
+            BUZZ_PAIRING_RELAY_URL: pairingUrl,
           },
         },
         ready: {
@@ -261,7 +291,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
           // First boot runs migrations before the health port comes up.
           gracePeriod: 60_000,
         },
-        requires: ['postgres', 'redis', 'minio-init', 'chown-git'],
+        // pairing-relay: upstream's own compose.pairing.yml has the main
+        // relay depend_on pairing-relay's service_started (not healthy) --
+        // mirrored here so the relay never starts before it exists.
+        requires: ['postgres', 'redis', 'minio-init', 'chown-git', 'pairing-relay'],
       })
       // Standalone: /_readiness above only checks Postgres/Redis (see Phase 0
       // spike notes), so a broken S3 connection is otherwise invisible to the
