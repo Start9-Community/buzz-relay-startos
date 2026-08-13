@@ -4,31 +4,32 @@ import { storeJson } from '../fileModels/store.json'
 import { i18n } from '../i18n'
 import { sdk } from '../sdk'
 
-// Auto-defaults to the LAN .local address on install -- matches the
-// ghost-startos/gitea-startos "changeable URL" convention, not a blocking
-// setup task. If the active address is later removed (its gateway got
-// disabled), falls back to .local again and raises a non-blocking notice --
-// silently swapping the address a running relay is reachable at could orphan
-// invite links or connected clients without warning.
+// The relay creates its community under RELAY_URL's host on first start and
+// upstream has no way to move it (see store.json.ts), so the address is not
+// auto-defaulted: a critical task makes the user choose it deliberately, while
+// the service is still blocked from starting. Once main.ts has bound it, a
+// missing address is reported for the user to restore -- never silently
+// swapped for another, which would bind a second, empty community.
 export const watchRelayUrl = sdk.setupOnInit(async (effects) => {
   const urls = await getRelayUrls(effects)
-  const current = await storeJson.read((s) => s.relayUrl).const(effects)
+  const bound = await storeJson.read((s) => s.boundRelayUrl).const(effects)
 
-  if (!current) {
-    await storeJson.merge(
-      effects,
-      { relayUrl: urls.find((u) => u.includes('.local')) },
-      { allowWriteAfterConst: true },
-    )
-  } else if (!urls.includes(current)) {
-    await storeJson.merge(
-      effects,
-      { relayUrl: urls.find((u) => u.includes('.local')) },
-      { allowWriteAfterConst: true },
-    )
-    await sdk.action.createOwnTask(effects, setRelayUrl, 'important', {
+  if (bound) {
+    if (!urls.includes(bound)) {
+      await sdk.action.createOwnTask(effects, setRelayUrl, 'important', {
+        reason: i18n(
+          'This relay is reachable only at the address its community was created under, and that address is currently unavailable. Re-enable the gateway that provides it.',
+        ),
+      })
+    }
+    return
+  }
+
+  const chosen = await storeJson.read((s) => s.relayUrl).const(effects)
+  if (!chosen || !urls.includes(chosen)) {
+    await sdk.action.createOwnTask(effects, setRelayUrl, 'critical', {
       reason: i18n(
-        'Your relay address changed because the previous one is no longer available',
+        'Choose the address clients will use to reach this relay. The relay creates its community under this address the first time it starts and it cannot be changed afterward.',
       ),
     })
   }

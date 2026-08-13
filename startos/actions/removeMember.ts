@@ -9,12 +9,14 @@ const inputSpec = InputSpec.of({
     const output = await execBuzzAdmin(effects, ['list-members'], {
       write: false,
     })
-    const members = parseMembers(output)
+    // The owner is a member row like any other, but buzz-admin refuses to
+    // remove it -- offering it would only ever produce a failed action.
+    const members = parseMembers(output).filter((m) => m.role !== 'owner')
 
     return {
       name: i18n('Member'),
       description: i18n(
-        'Who to remove. The relay owner is never listed here -- change RELAY_OWNER_PUBKEY instead.',
+        'Who to remove. The relay owner is not listed -- use Set Relay Owner to change that identity.',
       ),
       warning: null,
       values: members.reduce(

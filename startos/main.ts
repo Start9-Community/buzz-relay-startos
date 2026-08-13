@@ -1,4 +1,3 @@
-import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { storeJson } from './fileModels/store.json'
@@ -13,41 +12,25 @@ import {
   RELAY_PORT,
 } from './utils'
 
-// Fires once, the first time the relay daemon's own readiness check
-// succeeds -- gated on store.json's firstReadyNotified so a health check
-// that polls every 30s doesn't repost it forever. See recipe-notification.md
-// ("gate posts behind a one-shot condition").
-async function notifyFirstReady(
-  effects: T.Effects,
-  relayUrl: string,
-  ownerPubkey: string,
-) {
-  const alreadyNotified = await storeJson
-    .read((s) => s.firstReadyNotified)
-    .once()
-  if (alreadyNotified) return
-  await storeJson.merge(effects, { firstReadyNotified: true })
-  await sdk.notification.create(effects, {
-    level: 'success',
-    title: i18n('Buzz Relay is Ready'),
-    message: i18n(
-      'Connect Buzz Desktop using the address on the Interfaces tab.',
-    ),
-    data: [
-      '## Connection details',
-      '',
-      `- **Address:** ${relayUrl}`,
-      `- **Owner pubkey:** ${ownerPubkey}`,
-      '',
-      'Open Buzz Desktop, choose "Join a Community," and paste the address above.',
-    ].join('\n'),
-  })
-}
-
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Buzz Relay!'))
 
-  const store = await storeJson.read().const(effects)
+  // Mapped read: only the fields that feed daemon env, so writing boundRelayUrl
+  // just below doesn't re-run setupMain and bounce the whole daemon graph.
+  const store = await storeJson
+    .read((s) => ({
+      pgPassword: s.pgPassword,
+      redisPassword: s.redisPassword,
+      minioAccessKey: s.minioAccessKey,
+      minioSecretKey: s.minioSecretKey,
+      relayPrivateKey: s.relayPrivateKey,
+      gitHookHmacSecret: s.gitHookHmacSecret,
+      ownerPubkey: s.ownerPubkey,
+      relayUrl: s.relayUrl,
+      pairingUrl: s.pairingUrl,
+    }))
+    .const(effects)
+
   const pgPassword = store?.pgPassword ?? ''
   const redisPassword = store?.redisPassword ?? ''
   const minioAccessKey = store?.minioAccessKey ?? ''
@@ -55,9 +38,17 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const relayPrivateKey = store?.relayPrivateKey ?? ''
   const gitHookHmacSecret = store?.gitHookHmacSecret ?? ''
   const ownerPubkey = store?.ownerPubkey ?? ''
-  const relayUrl = store?.relayUrl ?? ''
-  const relayHostname = relayUrl ? new URL(relayUrl).hostname : ''
   const pairingUrl = store?.pairingUrl ?? ''
+
+  // First start binds the community to whichever address the user settled on;
+  // every start after that serves that same host regardless of what relayUrl
+  // now says. Read non-reactively and kept out of the projection above: the
+  // bind write must not invalidate this context. See store.json.ts.
+  const bound = await storeJson.read((s) => s.boundRelayUrl).once()
+  const relayUrl = bound ?? store?.relayUrl ?? ''
+  if (relayUrl && !bound)
+    await storeJson.merge(effects, { boundRelayUrl: relayUrl })
+  const relayHostname = relayUrl ? new URL(relayUrl).hostname : ''
 
   /**
    * ======================== PostgreSQL sidecar ========================
@@ -332,20 +323,15 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
         ready: {
           display: i18n('Buzz Relay'),
-          fn: async () => {
-            const result = await sdk.healthCheck.checkWebUrl(
+          fn: () =>
+            sdk.healthCheck.checkWebUrl(
               effects,
               `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`,
               {
                 successMessage: i18n('Buzz Relay is ready'),
                 errorMessage: i18n('Buzz Relay is not ready'),
               },
-            )
-            if (result.result === 'success') {
-              await notifyFirstReady(effects, relayUrl, ownerPubkey)
-            }
-            return result
-          },
+            ),
           // First boot runs migrations before the health port comes up.
           gracePeriod: 60_000,
         },

@@ -23,17 +23,16 @@ const dict = {
   // interfaces.ts, actions/setRelayUrl.ts, init/watchRelayUrl.ts
   'WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients': 17,
   'Set Relay Address/URL': 18,
-  'Choose which address Buzz Desktop and invite links should use to reach this relay.': 19,
-  'Changing this does not update links you already shared — anyone using the old address will need the new one.': 20,
+  'Choose which address Buzz Desktop and invite links use to reach this relay. This can only be set before the relay first starts.': 19,
+  'Choose carefully: the relay creates its community under this exact address the first time it starts, and the address cannot be changed afterward. Clients reaching the relay at any other address will not find your community. If you intend to use a Tor, clearnet, or tunnel address, enable that gateway on the Interfaces tab before starting the relay.': 20,
   'Address/URL': 21,
   'The address clients will use to reach this relay.': 22,
-  'Your relay address changed because the previous one is no longer available': 23,
-  // main.ts: media-storage health check, first-ready notification
+  'This relay is reachable only at the address its community was created under, and that address is currently unavailable. Re-enable the gateway that provides it.': 23,
+  'Choose the address clients will use to reach this relay. The relay creates its community under this address the first time it starts and it cannot be changed afterward.': 60,
+  // main.ts: media-storage health check
   'Media & Git Storage': 24,
   'Media and git storage are reachable': 25,
   'Media and git storage are unreachable — uploads and git operations will fail': 26,
-  'Buzz Relay is Ready': 27,
-  'Connect Buzz Desktop using the address on the Interfaces tab.': 28,
   // interfaces.ts: mobile pairing interface
   'Mobile Pairing': 29,
   'Pairing endpoint the Buzz mobile app connects to when scanning a QR code': 30,
@@ -57,7 +56,7 @@ const dict = {
   'Member Added': 46,
   'buzz-admin result:': 47,
   Result: 48,
-  'Who to remove. The relay owner is never listed here -- change RELAY_OWNER_PUBKEY instead.': 49,
+  'Who to remove. The relay owner is not listed -- use Set Relay Owner to change that identity.': 49,
   'Remove Member': 50,
   'Remove a Nostr identity from this relay.': 51,
   'This immediately revokes their access. They can be re-added later with Add Member.': 52,
@@ -69,6 +68,16 @@ const dict = {
   'Choose which address the mobile app should use to pair with this relay.': 57,
   "Only needed if the LAN address doesn't work for pairing -- for example, if your mobile app's own TLS trust store won't accept this box's local certificate. A tunnel or clearnet address avoids that.": 58,
   'Your pairing address changed because the previous one is no longer available': 59,
+  // Thrown out of action handlers -- StartOS renders these as the user's alert,
+  // so they are translated copy (actions.md, "Wrap User-Facing Strings").
+  'That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.': 61,
+  // Interpolation is the SDK's `${name}` form, substituted once per key
+  // (setupI18n uses String.replace with a string pattern, not a global regex),
+  // so each placeholder appears exactly once.
+  'Expected an npub1... address, got a ${prefix}1... address.': 62,
+  "That looks like a private key (nsec), not a public key. Paste the member's npub (or its hex public key) instead.": 63,
+  "This relay's community was created under ${bound} and upstream Buzz has no way to move it. Pointing the relay at ${chosen} would leave it serving a new, empty community while the original members, channels and messages stayed behind. To use a different address you must reinstall and start over.": 64,
+  'That npub is not valid — check it for typos. Every character matters, and the key carries its own checksum, so a single wrong character makes the whole key unreadable.': 65,
 } as const
 
 /**

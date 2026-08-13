@@ -53,7 +53,9 @@ export const addMember = sdk.Action.withInput(
     const pubkey = input.pubkey.trim()
     if (pubkey.toLowerCase().startsWith('nsec1')) {
       throw new Error(
-        "That looks like a private key (nsec), not a public key. Paste the member's npub (or its hex public key) instead.",
+        i18n(
+          "That looks like a private key (nsec), not a public key. Paste the member's npub (or its hex public key) instead.",
+        ),
       )
     }
 

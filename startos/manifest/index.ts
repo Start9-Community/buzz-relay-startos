@@ -5,7 +5,7 @@ export const manifest = setupManifest({
   id: 'buzz-relay',
   title: 'Buzz Relay',
   license: 'Apache-2.0', // matches upstream block/buzz
-  packageRepo: 'https://github.com/tronsington/buzz-relay-startos',
+  packageRepo: 'https://github.com/Start9-Community/buzz-relay-startos',
   upstreamRepo: 'https://github.com/block/buzz',
   marketingUrl: 'https://buzz.xyz',
   donationUrl: null,
@@ -16,12 +16,11 @@ export const manifest = setupManifest({
   volumes: ['main', 'db'],
   images: {
     // Confirmed multi-arch (amd64 + arm64) via registry manifest inspection.
-    // Upstream has no tagged semver image release, only ':main' (floating)
-    // and per-commit 'sha-<7>' tags -- pinned to the commit this package has
-    // actually been tested against (2026-08-12) rather than floating, so a
-    // public sideload can't silently pull an untested image out from under
-    // installers. Bump this pin deliberately, with a fresh test pass, not
-    // as a side effect of an unrelated change.
+    // Upstream publishes no semver image tag, only ':main' (floating) and
+    // per-commit 'sha-<7>'. Pinned to a commit this package has been tested
+    // against, so an install can't pull an untested image. Bump deliberately,
+    // with a fresh test pass -- and move the manifest version to match the
+    // buzz-relay crate version at the new commit (see UPDATING.md).
     'buzz-relay': {
       source: { dockerTag: 'ghcr.io/block/buzz:sha-4749bc7' },
       arch: ['x86_64', 'aarch64'],

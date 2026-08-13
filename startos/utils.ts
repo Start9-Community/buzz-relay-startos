@@ -1,7 +1,5 @@
-// Constants shared across this package's startos/ code.
-// Ports the buzz-relay binary binds inside its own subcontainer (see
-// deploy/compose/compose.yml in block/buzz) — not yet exposed via an
-// interface (that's Phase 4: interfaces.ts + URL wiring).
+// Ports the buzz-relay binary binds inside its own subcontainer, matching
+// deploy/compose/compose.yml in block/buzz.
 export const RELAY_PORT = 3000
 export const RELAY_HEALTH_PORT = 8080
 // NIP-AB mobile device pairing sidecar (buzz-pair-relay, bundled in the same

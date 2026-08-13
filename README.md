@@ -49,7 +49,9 @@ MinIO instances, all bundled into one `.s9pk`.
 
 All images are multi-arch (`x86_64` + `aarch64`), confirmed via registry manifest inspection.
 
-The `buzz-relay` image runs as a non-root `buzz` user (uid 1000) internally. A one-shot `chown-git` daemon runs `chown -R 1000:1000` on the git data mount before the relay starts, since StartOS's volume storage doesn't otherwise match the image's expected ownership.
+The `buzz-relay` image runs as a non-root `buzz` user (uid 1000) internally. A `chown-git` oneshot runs `chown -R 1000:1000` on the git data mount before the relay starts, since StartOS's volume storage doesn't otherwise match the image's expected ownership.
+
+Subcontainers are named `postgres`, `redis`, `minio`, `minio-mc`, `buzz-relay`, and `pairing-relay`; `buzz-admin` is the short-lived subcontainer the member actions run in. Pass these to `start-cli package attach -n`.
 
 ## Volume and Data Layout
 
@@ -58,17 +60,15 @@ The `buzz-relay` image runs as a non-root `buzz` user (uid 1000) internally. A o
 | `main` | `store.json` (secrets/config), Redis data (`redis/`), MinIO data (`minio/`), git repo data (`git/`) | |
 | `db`   | PostgreSQL data directory | Dedicated volume, not shared with `main` -- required by `sdk.Backups.withPgDump()`, which mounts its `dbVolume` at the root with no subpath |
 
-`store.json` holds internal secrets generated at install (`POSTGRES_PASSWORD`, `REDIS_PASSWORD`, MinIO keys, `BUZZ_RELAY_PRIVATE_KEY`, `BUZZ_GIT_HOOK_HMAC_SECRET`) plus two user-provided values: the owner's Nostr pubkey and the relay's chosen address.
+`store.json` is the package's only file model. It is seeded at install with internal secrets (`POSTGRES_PASSWORD`, `REDIS_PASSWORD`, MinIO keys, `BUZZ_RELAY_PRIVATE_KEY`, `BUZZ_GIT_HOOK_HMAC_SECRET`) and is otherwise written only by the actions: the owner's Nostr pubkey, the chosen relay and pairing addresses, and `boundRelayUrl` -- the address the relay actually created its community under, written once by `main.ts` at first start and never rewritten. A hand edit survives until something rewrites that field, but editing `boundRelayUrl` by hand does not move the community; it only points the relay at a different one.
 
 ## Installation and First-Run Flow
-
-This isn't on a registry yet -- grab `buzz-relay_x86_64.s9pk` or `buzz-relay_aarch64.s9pk` (matching your box's architecture) from this repo's [Releases](https://github.com/tronsington/buzz-relay-startos/releases) page, then in StartOS: **System > Sideload Service**, select the file, and install. Once installed, updates work the same way -- sideload a newer release's `.s9pk` over the existing install.
 
 This package skips Buzz's interactive setup entirely:
 
 - Every internal secret (database/cache passwords, MinIO keys, the relay's signing key, the git-hook HMAC secret) is generated automatically at install -- nothing to configure.
-- The relay address defaults automatically to the LAN `.local` address on install.
-- **One thing is not automatic and blocks first start:** the relay's owner identity. A critical task appears immediately after install prompting for the owner's Nostr public key (`npub1...` or 64-character hex) -- the service will not start until this is set.
+- **Two critical tasks block first start**, both raised immediately after install. The relay's owner identity (`npub1...` or 64-character hex), and the address clients will reach the relay at. The service will not start until both are set.
+- The address is deliberately not auto-defaulted. Upstream creates the relay's community under that address the first time the relay starts and provides no way to move it afterward, so the choice is presented as a task rather than made silently -- a user who wants a Tor, clearnet, or tunnel address must enable that gateway before starting, not after.
 - Migrations run automatically on every start (`BUZZ_AUTO_MIGRATE=true`) -- the upstream image embeds them, but the flag itself defaults off in the raw binary and must be set explicitly.
 
 ## Configuration Management
@@ -77,7 +77,7 @@ This package skips Buzz's interactive setup entirely:
 | -------------------------------------------------------------------------------- | ---------------------------------------- |
 | All database/cache/storage credentials, the relay's signing key                  | Everything reachable through Buzz's own web UI / REST API once running |
 | `RELAY_OWNER_PUBKEY` (via the **Set Relay Owner** action)                        | Channel structure, membership beyond the owner, agent identities |
-| `RELAY_URL` / `BUZZ_DOMAIN` / `BUZZ_CORS_ORIGINS` / `BUZZ_MEDIA_BASE_URL` (via the **Set Relay Address/URL** action, auto-defaulted) | |
+| `RELAY_URL` / `BUZZ_DOMAIN` / `BUZZ_CORS_ORIGINS` / `BUZZ_MEDIA_BASE_URL` (all derived from the address chosen via **Set Relay Address/URL** before first start, then frozen -- see Limitations) | |
 | Membership mode: hardcoded closed (`BUZZ_REQUIRE_AUTH_TOKEN=true`, `BUZZ_REQUIRE_RELAY_MEMBERSHIP=true`) -- no open-registration option in this package | |
 
 ## Network Access and Interfaces
@@ -89,22 +89,26 @@ Two interfaces, both type `api`:
 | `relay` | 3000 | WebSocket relay, REST API, and Buzz's small bundled web UI, all on one port |
 | `pairing` | 5000 | `buzz-pair-relay`, a separate process bundled in the same image, for NIP-AB mobile device pairing (scanning a QR code from the Buzz mobile app) |
 
-StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces tab rather than `http://`/`https://`, matching what Buzz Desktop and other Nostr clients actually dial. Both are reachable via whatever gateways the user enables -- LAN, Tor, a clearnet domain, Tailscale, or a Cloudflare/StartTunnel tunnel -- with no special-casing per gateway. Both addresses are user-selectable (**Set Relay Address/URL**, **Set Pairing Address/URL**).
+StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces tab rather than `http://`/`https://`, matching what Buzz Desktop and other Nostr clients actually dial. StartOS will serve both interfaces over whatever gateways the user enables -- LAN, Tor, a clearnet domain, Tailscale, or a Cloudflare/StartTunnel tunnel -- with no special-casing per gateway.
 
-**Confirmed on a real install (2026-08-12):** the LAN `.local` default for `pairing` doesn't work with Buzz Desktop's own pairing client -- its TLS stack doesn't trust the box's local self-signed certificate the way a browser that's installed the StartOS root CA does (`WebSocket connection failed: IO error: invalid peer certificate: UnknownIssuer`). **Set Pairing Address/URL** to a Tor, clearnet, or tunnel address instead. **With that done, the full QR pairing flow is confirmed working end-to-end on real hardware (2026-08-12, v1.0.0:1).**
+The two interfaces differ in how freely their advertised address can change. **Pairing** is a stateless sidecar, so **Set Pairing Address/URL** can be re-run at any time. **Relay** is not: upstream resolves a community from the connection's host and stores it in a single `communities.host` column, so only the one address the community was created under reaches it. **Set Relay Address/URL** is therefore a pre-first-start choice and refuses to change afterward. See Limitations.
+
+The LAN `.local` address does not work for `pairing` with Buzz Desktop's own pairing client -- its TLS stack doesn't trust the box's local self-signed certificate the way a browser that's installed the StartOS root CA does (`WebSocket connection failed: IO error: invalid peer certificate: UnknownIssuer`). Point **Set Pairing Address/URL** at a Tor, clearnet, or tunnel address instead.
 
 ## Actions (StartOS UI)
 
 | Action | Purpose | Availability | Input | Output |
 | ------ | ------- | ------------- | ----- | ------ |
 | **Set Relay Owner** (`set-owner-pubkey`) | Set the Nostr identity that owns and administers this relay | Only when stopped | `npub1...` or 64-char hex pubkey (explicitly rejects an `nsec1...` private key with a clear error) | -- |
-| **Set Relay Address/URL** (`set-relay-url`) | Choose which reachable address Buzz Desktop and invite links should use | Any status | Select from currently available addresses | -- |
+| **Set Relay Address/URL** (`set-relay-url`) | Choose which reachable address Buzz Desktop and invite links use. Permanent -- rejects any change once the relay has started once | Only when stopped | Select from currently available addresses | -- |
 | **Set Pairing Address/URL** (`set-pairing-url`) | Choose which reachable address the mobile app should use to pair | Any status | Select from currently available addresses | -- |
 | **Add Member** (`add-member`) | Register a new Nostr identity on the relay | Only when running | `npub1...`/hex pubkey + role (member/admin) | `buzz-admin`'s confirmation text |
 | **Remove Member** (`remove-member`) | Remove a member (never the owner -- `buzz-admin` itself refuses that) | Only when running | Select from current members | `buzz-admin`'s confirmation text |
 | **List Members** (`list-members`) | Show current membership and roles | Only when running | -- | Current roster |
 
-**Confirmed on a real install (2026-08-12, v1.0.0:1)** -- Add/Remove/List Member all wrap `buzz-admin` (bundled in the same image) via `sdk.SubContainer.withTemp()`.
+Add/Remove/List Member all wrap `buzz-admin` (bundled in the same image) via `sdk.SubContainer.withTemp()`. `buzz-admin` resolves which community it is acting on from `RELAY_URL`'s host, so these actions operate on the community the relay bound at first start.
+
+Two tasks are raised. Both **Set Relay Owner** and **Set Relay Address/URL** are raised `critical` on install and block the service from starting; each clears when its value is set. If the bound relay address later stops being reachable -- the gateway providing it was disabled -- **Set Relay Address/URL** is raised again at `important` to prompt restoring that gateway. It does not block, and the package never substitutes a different address.
 
 ## Backups and Restore
 
@@ -129,9 +133,10 @@ None. PostgreSQL, Redis, and MinIO are bundled as private sidecars dedicated to 
 
 ## Limitations and Differences
 
-1. **Closed relay only.** No open-registration mode -- membership is owner-invite-only. Upstream supports both.
-2. **Mobile app pairing and the member-management actions are both confirmed working end-to-end on real hardware (2026-08-12, v1.0.0:1)** -- see the Network Access section above for pairing's one-time address caveat.
-3. **The relay's owner pubkey and address are chosen once via StartOS actions**, not upstream's interactive setup wizard -- this package never runs it.
+1. **One address, chosen before first start, permanent thereafter.** Upstream resolves a request's community from its connection host, stores that host in `communities.host` (`UNIQUE` on `lower(host)`, with no alias table), and creates a *new, empty* community for any host it has not seen. So a relay serves exactly one of the box's addresses no matter how many gateways StartOS exposes, and re-pointing it would leave the original members, channels and messages stranded under the old host with no upstream path to move them. This package binds the address at first start and refuses to change it; moving to a different address means reinstalling. Choose deliberately: enable the gateway you intend to use *before* first start.
+2. **Closed relay only.** No open-registration mode -- membership is owner-invite-only. Upstream supports both.
+3. **The relay's owner pubkey and address are chosen via StartOS actions**, not upstream's interactive setup wizard -- this package never runs it.
+4. **The pairing sidecar's LAN address is unusable with the current mobile pairing client** -- see Network Access and Interfaces.
 
 ## What Is Unchanged from Upstream
 

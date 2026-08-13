@@ -52,16 +52,31 @@ export const setOwnerPubkey = sdk.Action.withInput(
 
     let hex: string
     if (lower.startsWith('nsec1')) {
-      // Deliberately not i18n-wrapped -- thrown errors are developer-facing
-      // diagnostics, not translated UI copy (see actions.md conventions).
       throw new Error(
-        'That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.',
+        i18n(
+          'That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.',
+        ),
       )
     } else if (lower.startsWith('npub1')) {
-      const decoded = decodeBech32(lower)
+      // decodeBech32's own errors are library diagnostics ("invalid bech32
+      // checksum"); a mistyped npub clears the input pattern and lands here, so
+      // translate at the boundary rather than leaking them into the alert.
+      const decoded = (() => {
+        try {
+          return decodeBech32(lower)
+        } catch {
+          throw new Error(
+            i18n(
+              'That npub is not valid — check it for typos. Every character matters, and the key carries its own checksum, so a single wrong character makes the whole key unreadable.',
+            ),
+          )
+        }
+      })()
       if (decoded.prefix !== 'npub') {
         throw new Error(
-          `Expected an npub1... address, got a ${decoded.prefix}1... address.`,
+          i18n('Expected an npub1... address, got a ${prefix}1... address.', {
+            prefix: decoded.prefix,
+          }),
         )
       }
       hex = decoded.hex
