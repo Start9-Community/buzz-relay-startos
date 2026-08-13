@@ -1,22 +1,25 @@
-import { getRelayUrls } from '../interfaces'
+import { getRelayDomains } from '../interfaces'
 import { i18n } from '../i18n'
 import { storeJson } from '../fileModels/store.json'
 import { sdk } from '../sdk'
+import { setOwnerPubkey } from './setOwnerPubkey'
 
 const { InputSpec, Value } = sdk
 
 const inputSpec = InputSpec.of({
   url: Value.dynamicSelect(async ({ effects }) => {
-    const urls = await getRelayUrls(effects)
+    const domains = await getRelayDomains(effects)
     return {
       name: i18n('Address/URL'),
-      description: i18n('The address clients will use to reach this relay.'),
+      description: i18n(
+        'The address clients will use to reach this relay. It becomes the permanent identity of your community.',
+      ),
       warning: null,
-      values: urls.reduce(
+      values: domains.reduce(
         (obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }),
         {},
       ),
-      default: urls.find((u) => u.includes('.local')) ?? urls[0] ?? '',
+      default: domains[0] || '',
     }
   }),
 })
@@ -25,20 +28,16 @@ export const setRelayUrl = sdk.Action.withInput(
   'set-relay-url',
   async () => ({
     name: i18n('Set Relay Address/URL'),
-    description: i18n(
-      'Choose which address Buzz Desktop and invite links use to reach this relay. This can only be set before the relay first starts.',
-    ),
+    description: i18n('Choose a permanent address/URL for your Buzz relay.'),
     warning: i18n(
-      'Choose carefully: the relay creates its community under this exact address the first time it starts, and the address cannot be changed afterward. Clients reaching the relay at any other address will not find your community. If you intend to use a Tor, clearnet, or tunnel address, enable that gateway on the Interfaces tab before starting the relay.',
+      'This can never be changed. You must first add a public domain to the Buzz Relay interface, using Let’s Encrypt as the certificate provider.',
     ),
     allowedStatuses: 'only-stopped',
     group: null,
-    visibility: 'enabled',
+    visibility: 'hidden',
   }),
   inputSpec,
-  async () => ({
-    url: (await storeJson.read((s) => s.relayUrl).once()) || undefined,
-  }),
+  async () => ({}),
   async ({ effects, input }) => {
     const bound = await storeJson.read((s) => s.boundRelayUrl).once()
     if (bound && bound !== input.url) {
@@ -49,6 +48,13 @@ export const setRelayUrl = sdk.Action.withInput(
         ),
       )
     }
+
     await storeJson.merge(effects, { relayUrl: input.url })
+
+    await sdk.action.createOwnTask(effects, setOwnerPubkey, 'critical', {
+      reason: i18n(
+        "Set the relay owner's Nostr public key before the relay can start",
+      ),
+    })
   },
 )

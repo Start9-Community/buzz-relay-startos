@@ -63,10 +63,11 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   ]
 })
 
-function getInterfaceUrls(
+function getInterfaceAddresses(
   effects: T.Effects,
   hostId: string,
   interfaceId: string,
+  domainsOnly: boolean,
 ): Promise<string[]> {
   return sdk.host
     .getOwn(effects, hostId, (host) => {
@@ -75,22 +76,45 @@ function getInterfaceUrls(
         Object.values(host.bindings)
           .flatMap((b) => Object.values(b.interfaces))
           .find((i) => i.id === interfaceId)
-      return iface ? iface.addressInfo.nonLocal.format() : []
+      if (!iface) return []
+      return domainsOnly
+        ? iface.addressInfo
+            .filter({
+              visibility: 'public',
+              // `kind: 'domain'` alone also matches 'private-domain', which is
+              // LAN-only and never publicly resolvable. This is as far as
+              // package code can narrow it: `HostnameInfo` carries no ACME
+              // provider, so whether the certificate is actually Let's
+              // Encrypt's rather than StartOS's local CA is the user's choice
+              // when they add the domain -- which is why the action's warning
+              // names Let's Encrypt explicitly.
+              predicate: (h) => h.metadata.kind === 'public-domain' && h.ssl,
+            })
+            .format()
+        : iface.addressInfo.nonLocal.format()
     })
-    .const()
+    .once()
 }
 
-// Every address the relay interface is currently reachable at -- LAN
-// .local, Tor, clearnet, or a Tailscale/StartTunnel/Cloudflare-tunnel
-// domain, once the user enables that gateway -- already scheme-corrected
-// to ws/wss via schemeOverride above. Excludes only the internal loopback
-// stub. Modeled on ghost-startos/gitea-startos's
-// getNonLocalUrls/getHttpInterfaceUrls.
-export function getRelayUrls(effects: T.Effects): Promise<string[]> {
-  return getInterfaceUrls(effects, relayHostId, relayInterfaceId)
+// A publicly-trusted domain, and nothing else. The relay's address is permanent
+// (see store.json.ts), and upstream builds its WebSocket clients against
+// tokio-tungstenite's `rustls-tls-webpki-roots` feature -- the Mozilla root set
+// compiled into the binary, system trust store ignored. A .local address signed
+// by this box's own CA, a private domain, and a .onion address no public CA can
+// issue for are all rejected there no matter what the user installs on their
+// device, so offering any of them would only let someone bind their community
+// to an address its clients can never reach.
+export function getRelayDomains(effects: T.Effects): Promise<string[]> {
+  return getInterfaceAddresses(effects, relayHostId, relayInterfaceId, true)
 }
 
-// Same, for the mobile-pairing interface.
+// The pairing sidecar's address is not permanent and not a community key, so
+// this one stays unrestricted -- LAN is the common case for QR pairing.
 export function getPairingUrls(effects: T.Effects): Promise<string[]> {
-  return getInterfaceUrls(effects, pairingHostId, pairingInterfaceId)
+  return getInterfaceAddresses(
+    effects,
+    pairingHostId,
+    pairingInterfaceId,
+    false,
+  )
 }

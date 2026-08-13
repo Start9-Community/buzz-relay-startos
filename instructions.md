@@ -9,13 +9,15 @@
 
 A closed, single-owner Buzz relay -- the WebSocket relay, REST API, and a small bundled web UI, all on one interface. PostgreSQL, Redis, and object storage for git repos and media run alongside it as private sidecars, with nothing to configure on your end: every credential is generated automatically.
 
-Two things are asked of you right after install, and the relay won't start until both are answered.
+You need a domain of your own to run Buzz. Buzz's apps trust only the standard public certificate authorities, so a Tor address or your server's local `.local` address cannot be used — a certificate you install on your own devices makes no difference to them.
 
-1. **Decide how people will reach this relay, before you answer anything else.** Buzz creates your community under one single address the first time the relay starts, and there is no way to move it afterward — if you later want a different address, you have to start over from an empty community. If you want people to reach you over Tor, a domain of your own, or a tunnel, turn that on under the **Interfaces** tab *now*, before you continue.
-2. **Set Relay Owner** — paste your `npub1...` address (or its 64-character hex equivalent). This is the identity that administers the relay.
-3. **Set Relay Address/URL** — pick the address you settled on in step 1.
+The relay won't start until you have worked through the tasks StartOS raises, in order.
+
+1. **Add your domain to the Buzz Relay interface**, under the **Interfaces** tab, choosing **Let's Encrypt** as the certificate provider. Do this first — the next task has nothing to offer you until it's done.
+2. **Set Relay Address/URL** — pick your domain. **This is permanent.** Buzz creates your community under this exact address the first time the relay starts, and nothing can move it afterward; changing your mind later means starting over from an empty community.
+3. **Set Relay Owner** — paste your `npub1...` address (or its 64-character hex equivalent). This is the identity that administers the relay.
 4. The relay starts, and is ready once its health checks turn green.
-5. Open Buzz Desktop, choose **Join a Community**, and paste the relay's address from the **Interfaces** tab.
+5. Open Buzz Desktop, choose **Join a Community**, and enter your domain.
 
 ## Using Buzz Relay
 

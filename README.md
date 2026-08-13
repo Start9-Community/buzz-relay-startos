@@ -67,8 +67,8 @@ Subcontainers are named `postgres`, `redis`, `minio`, `minio-mc`, `buzz-relay`, 
 This package skips Buzz's interactive setup entirely:
 
 - Every internal secret (database/cache passwords, MinIO keys, the relay's signing key, the git-hook HMAC secret) is generated automatically at install -- nothing to configure.
-- **Two critical tasks block first start**, both raised immediately after install. The relay's owner identity (`npub1...` or 64-character hex), and the address clients will reach the relay at. The service will not start until both are set.
-- The address is deliberately not auto-defaulted. Upstream creates the relay's community under that address the first time the relay starts and provides no way to move it afterward, so the choice is presented as a task rather than made silently -- a user who wants a Tor, clearnet, or tunnel address must enable that gateway before starting, not after.
+- **A chain of critical tasks blocks first start**, following the `synapse-startos` pattern. Install raises **Set Relay Address/URL**; answering it raises **Set Relay Owner**. The service will not start until both are set. Neither action is browsable -- `set-relay-url` is `visibility: 'hidden'` and reached only through its task.
+- The address is deliberately not auto-defaulted, and the picker offers public domains only. Upstream creates the relay's community under that address on first start and provides no way to move it, so the user has to add a domain to the interface before the task can be answered at all.
 - Migrations run automatically on every start (`BUZZ_AUTO_MIGRATE=true`) -- the upstream image embeds them, but the flag itself defaults off in the raw binary and must be set explicitly.
 
 ## Configuration Management
@@ -100,7 +100,7 @@ The LAN `.local` address does not work for `pairing` with Buzz Desktop's own pai
 | Action | Purpose | Availability | Input | Output |
 | ------ | ------- | ------------- | ----- | ------ |
 | **Set Relay Owner** (`set-owner-pubkey`) | Set the Nostr identity that owns and administers this relay | Only when stopped | `npub1...` or 64-char hex pubkey (explicitly rejects an `nsec1...` private key with a clear error) | -- |
-| **Set Relay Address/URL** (`set-relay-url`) | Choose which reachable address Buzz Desktop and invite links use. Permanent -- rejects any change once the relay has started once | Only when stopped | Select from currently available addresses | -- |
+| **Set Relay Address/URL** (`set-relay-url`) | Choose the permanent address the community is created under. Rejects any change once bound. `visibility: 'hidden'` -- not user-browsable, raised as a task | Only when stopped | Select from public domains on the relay interface | -- |
 | **Set Pairing Address/URL** (`set-pairing-url`) | Choose which reachable address the mobile app should use to pair | Any status | Select from currently available addresses | -- |
 | **Add Member** (`add-member`) | Register a new Nostr identity on the relay | Only when running | `npub1...`/hex pubkey + role (member/admin) | `buzz-admin`'s confirmation text |
 | **Remove Member** (`remove-member`) | Remove a member (never the owner -- `buzz-admin` itself refuses that) | Only when running | Select from current members | `buzz-admin`'s confirmation text |
@@ -108,7 +108,7 @@ The LAN `.local` address does not work for `pairing` with Buzz Desktop's own pai
 
 Add/Remove/List Member all wrap `buzz-admin` (bundled in the same image) via `sdk.SubContainer.withTemp()`. `buzz-admin` resolves which community it is acting on from `RELAY_URL`'s host, so these actions operate on the community the relay bound at first start.
 
-Two tasks are raised. Both **Set Relay Owner** and **Set Relay Address/URL** are raised `critical` on install and block the service from starting; each clears when its value is set. If the bound relay address later stops being reachable -- the gateway providing it was disabled -- **Set Relay Address/URL** is raised again at `important` to prompt restoring that gateway. It does not block, and the package never substitutes a different address.
+Tasks chain rather than appearing together. `seedFiles` raises **Set Relay Address/URL** `critical` on install; its handler raises **Set Relay Owner** `critical` in turn. Each blocks the service from starting and clears when its value is set. Nothing re-raises them afterward, and the package never substitutes an address of its own choosing.
 
 ## Backups and Restore
 
@@ -133,7 +133,9 @@ None. PostgreSQL, Redis, and MinIO are bundled as private sidecars dedicated to 
 
 ## Limitations and Differences
 
-1. **One address, chosen before first start, permanent thereafter.** Upstream resolves a request's community from its connection host, stores that host in `communities.host` (`UNIQUE` on `lower(host)`, with no alias table), and creates a *new, empty* community for any host it has not seen. So a relay serves exactly one of the box's addresses no matter how many gateways StartOS exposes, and re-pointing it would leave the original members, channels and messages stranded under the old host with no upstream path to move them. This package binds the address at first start and refuses to change it; moving to a different address means reinstalling. Choose deliberately: enable the gateway you intend to use *before* first start.
+1. **One address, chosen before first start, permanent thereafter.** Upstream resolves a request's community from its connection host, stores that host in `communities.host` (`UNIQUE` on `lower(host)`, with no alias table), and creates a *new, empty* community for any host it has not seen. So a relay serves exactly one of the box's addresses no matter how many gateways StartOS exposes, and re-pointing it would leave the original members, channels and messages stranded under the old host with no upstream path to move them. This package binds the address at first start and refuses to change it; moving to a different address means reinstalling.
+
+   **The address picker offers public domains only.** Upstream builds its WebSocket clients against `tokio-tungstenite`'s `rustls-tls-webpki-roots` feature — the Mozilla root set compiled into the binary, with the system trust store ignored — so a CA the user installs on their device changes nothing for those clients. A `.onion` address cannot be served over `wss` at all, since no public CA issues for `.onion`, and the LAN `.local` address is signed by the box's own CA and rejected on that path (confirmed for mobile pairing: `invalid peer certificate: UnknownIssuer`). Offering either would only let someone bind their community permanently to an address its clients can never reach, so `getRelayDomains` filters the select to `{ kind: 'domain' }`, matching `synapse-startos`'s treatment of its equally-permanent `server_name`.
 2. **Closed relay only.** No open-registration mode -- membership is owner-invite-only. Upstream supports both.
 3. **The relay's owner pubkey and address are chosen via StartOS actions**, not upstream's interactive setup wizard -- this package never runs it.
 4. **The pairing sidecar's LAN address is unusable with the current mobile pairing client** -- see Network Access and Interfaces.

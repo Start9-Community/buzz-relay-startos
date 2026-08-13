@@ -23,12 +23,12 @@ const dict = {
   // interfaces.ts, actions/setRelayUrl.ts, init/watchRelayUrl.ts
   'WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients': 17,
   'Set Relay Address/URL': 18,
-  'Choose which address Buzz Desktop and invite links use to reach this relay. This can only be set before the relay first starts.': 19,
-  'Choose carefully: the relay creates its community under this exact address the first time it starts, and the address cannot be changed afterward. Clients reaching the relay at any other address will not find your community. If you intend to use a Tor, clearnet, or tunnel address, enable that gateway on the Interfaces tab before starting the relay.': 20,
   'Address/URL': 21,
-  'The address clients will use to reach this relay.': 22,
+  'Choose a permanent address/URL for your Buzz relay.': 19,
+  'This can never be changed. You must first add a public domain to the Buzz Relay interface, using Let’s Encrypt as the certificate provider.': 20,
+  'The address clients will use to reach this relay. It becomes the permanent identity of your community.': 22,
+  'Choose the permanent address/URL of your Buzz relay': 60,
   'This relay is reachable only at the address its community was created under, and that address is currently unavailable. Re-enable the gateway that provides it.': 23,
-  'Choose the address clients will use to reach this relay. The relay creates its community under this address the first time it starts and it cannot be changed afterward.': 60,
   // main.ts: media-storage health check
   'Media & Git Storage': 24,
   'Media and git storage are reachable': 25,
