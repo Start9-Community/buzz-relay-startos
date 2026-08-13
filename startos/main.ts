@@ -2,20 +2,37 @@ import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { storeJson } from './fileModels/store.json'
-import { MINIO_BUCKET, MINIO_PORT, PAIRING_PORT, POSTGRES_DB, POSTGRES_PATH, POSTGRES_USER, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
+import {
+  MINIO_BUCKET,
+  MINIO_PORT,
+  PAIRING_PORT,
+  POSTGRES_DB,
+  POSTGRES_PATH,
+  POSTGRES_USER,
+  RELAY_HEALTH_PORT,
+  RELAY_PORT,
+} from './utils'
 
 // Fires once, the first time the relay daemon's own readiness check
 // succeeds -- gated on store.json's firstReadyNotified so a health check
 // that polls every 30s doesn't repost it forever. See recipe-notification.md
 // ("gate posts behind a one-shot condition").
-async function notifyFirstReady(effects: T.Effects, relayUrl: string, ownerPubkey: string) {
-  const alreadyNotified = await storeJson.read(s => s.firstReadyNotified).once()
+async function notifyFirstReady(
+  effects: T.Effects,
+  relayUrl: string,
+  ownerPubkey: string,
+) {
+  const alreadyNotified = await storeJson
+    .read((s) => s.firstReadyNotified)
+    .once()
   if (alreadyNotified) return
   await storeJson.merge(effects, { firstReadyNotified: true })
   await sdk.notification.create(effects, {
     level: 'success',
     title: i18n('Buzz Relay is Ready'),
-    message: i18n('Connect Buzz Desktop using the address on the Interfaces tab.'),
+    message: i18n(
+      'Connect Buzz Desktop using the address on the Interfaces tab.',
+    ),
     data: [
       '## Connection details',
       '',
@@ -114,7 +131,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * A third binary bundled in the same image (buzz-pair-relay), for NIP-AB
    * QR-code mobile device pairing. No persistent storage of its own.
    */
-  const pairingSub = sdk.SubContainer.of(effects, { imageId: 'buzz-relay' }, sdk.Mounts.of(), 'pairing-relay')
+  const pairingSub = sdk.SubContainer.of(
+    effects,
+    { imageId: 'buzz-relay' },
+    sdk.Mounts.of(),
+    'pairing-relay',
+  )
 
   return (
     sdk.Daemons.of(effects)
@@ -143,7 +165,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
             ])
             return result.exitCode === 0
               ? { result: 'success', message: i18n('PostgreSQL is ready') }
-              : { result: 'loading', message: i18n('Waiting for PostgreSQL to be ready') }
+              : {
+                  result: 'loading',
+                  message: i18n('Waiting for PostgreSQL to be ready'),
+                }
           },
         },
         requires: [],
@@ -151,15 +176,30 @@ export const main = sdk.setupMain(async ({ effects }) => {
       .addDaemon('redis', {
         subcontainer: redisSub,
         exec: {
-          command: sdk.useEntrypoint(['--requirepass', redisPassword, '--appendonly', 'yes']),
+          command: sdk.useEntrypoint([
+            '--requirepass',
+            redisPassword,
+            '--appendonly',
+            'yes',
+          ]),
         },
         ready: {
           display: null, // internal sidecar
           fn: async () => {
-            const result = await redisSub.exec(['redis-cli', '--no-auth-warning', '-a', redisPassword, 'ping'])
-            return result.exitCode === 0 && result.stdout.toString().trim() === 'PONG'
+            const result = await redisSub.exec([
+              'redis-cli',
+              '--no-auth-warning',
+              '-a',
+              redisPassword,
+              'ping',
+            ])
+            return result.exitCode === 0 &&
+              result.stdout.toString().trim() === 'PONG'
               ? { result: 'success', message: i18n('Redis is ready') }
-              : { result: 'loading', message: i18n('Waiting for Redis to be ready') }
+              : {
+                  result: 'loading',
+                  message: i18n('Waiting for Redis to be ready'),
+                }
           },
         },
         requires: [],
@@ -167,7 +207,12 @@ export const main = sdk.setupMain(async ({ effects }) => {
       .addDaemon('minio', {
         subcontainer: minioSub,
         exec: {
-          command: sdk.useEntrypoint(['server', '/data', '--console-address', ':9001']),
+          command: sdk.useEntrypoint([
+            'server',
+            '/data',
+            '--console-address',
+            ':9001',
+          ]),
           env: {
             MINIO_ROOT_USER: minioAccessKey,
             MINIO_ROOT_PASSWORD: minioSecretKey,
@@ -176,17 +221,26 @@ export const main = sdk.setupMain(async ({ effects }) => {
         ready: {
           display: null, // internal sidecar
           fn: () =>
-            sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${MINIO_PORT}/minio/health/live`, {
-              successMessage: i18n('MinIO is ready'),
-              errorMessage: i18n('Waiting for MinIO to be ready'),
-            }),
+            sdk.healthCheck.checkWebUrl(
+              effects,
+              `http://127.0.0.1:${MINIO_PORT}/minio/health/live`,
+              {
+                successMessage: i18n('MinIO is ready'),
+                errorMessage: i18n('Waiting for MinIO to be ready'),
+              },
+            ),
         },
         requires: [],
       })
       // One-shot: create the media bucket. Runs every start (idempotent via
       // --ignore-existing), mirrors deploy/compose/compose.yml's minio-init.
       .addOneshot('minio-init', {
-        subcontainer: sdk.SubContainer.of(effects, { imageId: 'minio-mc' }, sdk.Mounts.of(), 'minio-mc'),
+        subcontainer: sdk.SubContainer.of(
+          effects,
+          { imageId: 'minio-mc' },
+          sdk.Mounts.of(),
+          'minio-mc',
+        ),
         exec: {
           command: [
             '/bin/sh',
@@ -279,10 +333,14 @@ export const main = sdk.setupMain(async ({ effects }) => {
         ready: {
           display: i18n('Buzz Relay'),
           fn: async () => {
-            const result = await sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`, {
-              successMessage: i18n('Buzz Relay is ready'),
-              errorMessage: i18n('Buzz Relay is not ready'),
-            })
+            const result = await sdk.healthCheck.checkWebUrl(
+              effects,
+              `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`,
+              {
+                successMessage: i18n('Buzz Relay is ready'),
+                errorMessage: i18n('Buzz Relay is not ready'),
+              },
+            )
             if (result.result === 'success') {
               await notifyFirstReady(effects, relayUrl, ownerPubkey)
             }
@@ -294,7 +352,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
         // pairing-relay: upstream's own compose.pairing.yml has the main
         // relay depend_on pairing-relay's service_started (not healthy) --
         // mirrored here so the relay never starts before it exists.
-        requires: ['postgres', 'redis', 'minio-init', 'chown-git', 'pairing-relay'],
+        requires: [
+          'postgres',
+          'redis',
+          'minio-init',
+          'chown-git',
+          'pairing-relay',
+        ],
       })
       // Standalone: /_readiness above only checks Postgres/Redis (see Phase 0
       // spike notes), so a broken S3 connection is otherwise invisible to the
@@ -303,10 +367,16 @@ export const main = sdk.setupMain(async ({ effects }) => {
         ready: {
           display: i18n('Media & Git Storage'),
           fn: () =>
-            sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${MINIO_PORT}/minio/health/live`, {
-              successMessage: i18n('Media and git storage are reachable'),
-              errorMessage: i18n('Media and git storage are unreachable — uploads and git operations will fail'),
-            }),
+            sdk.healthCheck.checkWebUrl(
+              effects,
+              `http://127.0.0.1:${MINIO_PORT}/minio/health/live`,
+              {
+                successMessage: i18n('Media and git storage are reachable'),
+                errorMessage: i18n(
+                  'Media and git storage are unreachable — uploads and git operations will fail',
+                ),
+              },
+            ),
         },
         requires: ['buzz-relay'],
       })

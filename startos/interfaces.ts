@@ -23,7 +23,9 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const relay = sdk.createInterface(effects, {
     name: i18n('Buzz Relay'),
     id: relayInterfaceId,
-    description: i18n('WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients'),
+    description: i18n(
+      'WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients',
+    ),
     type: 'api',
     masked: false,
     schemeOverride: { ssl: 'wss', noSsl: 'ws' },
@@ -44,7 +46,9 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const pairing = sdk.createInterface(effects, {
     name: i18n('Mobile Pairing'),
     id: pairingInterfaceId,
-    description: i18n('Pairing endpoint the Buzz mobile app connects to when scanning a QR code'),
+    description: i18n(
+      'Pairing endpoint the Buzz mobile app connects to when scanning a QR code',
+    ),
     type: 'api',
     masked: false,
     schemeOverride: { ssl: 'wss', noSsl: 'ws' },
@@ -53,17 +57,24 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     query: {},
   })
 
-  return [await relayOrigin.export([relay]), await pairingOrigin.export([pairing])]
+  return [
+    await relayOrigin.export([relay]),
+    await pairingOrigin.export([pairing]),
+  ]
 })
 
-function getInterfaceUrls(effects: T.Effects, hostId: string, interfaceId: string): Promise<string[]> {
+function getInterfaceUrls(
+  effects: T.Effects,
+  hostId: string,
+  interfaceId: string,
+): Promise<string[]> {
   return sdk.host
-    .getOwn(effects, hostId, host => {
+    .getOwn(effects, hostId, (host) => {
       const iface =
         host &&
         Object.values(host.bindings)
-          .flatMap(b => Object.values(b.interfaces))
-          .find(i => i.id === interfaceId)
+          .flatMap((b) => Object.values(b.interfaces))
+          .find((i) => i.id === interfaceId)
       return iface ? iface.addressInfo.nonLocal.format() : []
     })
     .const()

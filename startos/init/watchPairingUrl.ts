@@ -9,16 +9,26 @@ import { sdk } from '../sdk'
 // stay LAN-only -- wrong in practice (a real install needed a tunnel
 // address, because the mobile app's TLS stack doesn't trust the box's
 // local self-signed cert). Now mirrors relay's behavior exactly.
-export const watchPairingUrl = sdk.setupOnInit(async effects => {
+export const watchPairingUrl = sdk.setupOnInit(async (effects) => {
   const urls = await getPairingUrls(effects)
-  const current = await storeJson.read(s => s.pairingUrl).const(effects)
+  const current = await storeJson.read((s) => s.pairingUrl).const(effects)
 
   if (!current) {
-    await storeJson.merge(effects, { pairingUrl: urls.find(u => u.includes('.local')) }, { allowWriteAfterConst: true })
+    await storeJson.merge(
+      effects,
+      { pairingUrl: urls.find((u) => u.includes('.local')) },
+      { allowWriteAfterConst: true },
+    )
   } else if (!urls.includes(current)) {
-    await storeJson.merge(effects, { pairingUrl: urls.find(u => u.includes('.local')) }, { allowWriteAfterConst: true })
+    await storeJson.merge(
+      effects,
+      { pairingUrl: urls.find((u) => u.includes('.local')) },
+      { allowWriteAfterConst: true },
+    )
     await sdk.action.createOwnTask(effects, setPairingUrl, 'important', {
-      reason: i18n('Your pairing address changed because the previous one is no longer available'),
+      reason: i18n(
+        'Your pairing address changed because the previous one is no longer available',
+      ),
     })
   }
 })

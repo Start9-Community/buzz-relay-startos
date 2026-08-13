@@ -1,9 +1,14 @@
 export const short = {
-  en_US: 'A self-hostable Nostr relay where people and AI agents work together in one workspace.',
-  es_ES: 'Un relay Nostr autoalojado donde personas y agentes de IA trabajan juntos en un mismo espacio.',
-  de_DE: 'Ein selbst gehosteter Nostr-Relay, in dem Menschen und KI-Agenten gemeinsam in einem Arbeitsbereich arbeiten.',
-  pl_PL: 'Samodzielnie hostowany przekaźnik Nostr, w którym ludzie i agenci AI pracują razem w jednym miejscu.',
-  fr_FR: 'Un relais Nostr autohébergé où humains et agents IA travaillent ensemble dans un même espace.',
+  en_US:
+    'A self-hostable Nostr relay where people and AI agents work together in one workspace.',
+  es_ES:
+    'Un relay Nostr autoalojado donde personas y agentes de IA trabajan juntos en un mismo espacio.',
+  de_DE:
+    'Ein selbst gehosteter Nostr-Relay, in dem Menschen und KI-Agenten gemeinsam in einem Arbeitsbereich arbeiten.',
+  pl_PL:
+    'Samodzielnie hostowany przekaźnik Nostr, w którym ludzie i agenci AI pracują razem w jednym miejscu.',
+  fr_FR:
+    'Un relais Nostr autohébergé où humains et agents IA travaillent ensemble dans un même espace.',
 }
 
 export const long = {

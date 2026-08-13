@@ -6,14 +6,24 @@ const { InputSpec, Value } = sdk
 
 const inputSpec = InputSpec.of({
   pubkey: Value.dynamicSelect(async ({ effects }) => {
-    const output = await execBuzzAdmin(effects, ['list-members'], { write: false })
+    const output = await execBuzzAdmin(effects, ['list-members'], {
+      write: false,
+    })
     const members = parseMembers(output)
 
     return {
       name: i18n('Member'),
-      description: i18n('Who to remove. The relay owner is never listed here -- change RELAY_OWNER_PUBKEY instead.'),
+      description: i18n(
+        'Who to remove. The relay owner is never listed here -- change RELAY_OWNER_PUBKEY instead.',
+      ),
       warning: null,
-      values: members.reduce((obj: Record<string, string>, m) => ({ ...obj, [m.pubkey]: `${m.pubkey} (${m.role})` }), {}),
+      values: members.reduce(
+        (obj: Record<string, string>, m) => ({
+          ...obj,
+          [m.pubkey]: `${m.pubkey} (${m.role})`,
+        }),
+        {},
+      ),
       default: '',
     }
   }),
@@ -24,7 +34,9 @@ export const removeMember = sdk.Action.withInput(
   async () => ({
     name: i18n('Remove Member'),
     description: i18n('Remove a Nostr identity from this relay.'),
-    warning: i18n('This immediately revokes their access. They can be re-added later with Add Member.'),
+    warning: i18n(
+      'This immediately revokes their access. They can be re-added later with Add Member.',
+    ),
     allowedStatuses: 'only-running',
     group: null,
     visibility: 'enabled',
@@ -32,7 +44,11 @@ export const removeMember = sdk.Action.withInput(
   inputSpec,
   async () => ({}),
   async ({ effects, input }) => {
-    const output = await execBuzzAdmin(effects, ['remove-member', '--pubkey', input.pubkey], { write: true })
+    const output = await execBuzzAdmin(
+      effects,
+      ['remove-member', '--pubkey', input.pubkey],
+      { write: true },
+    )
 
     return {
       version: '1',

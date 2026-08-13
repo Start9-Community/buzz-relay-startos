@@ -26,13 +26,19 @@ function hrpExpand(hrp: string): number[] {
   return ret
 }
 
-function convertBits(data: number[], fromBits: number, toBits: number, pad: boolean): number[] {
+function convertBits(
+  data: number[],
+  fromBits: number,
+  toBits: number,
+  pad: boolean,
+): number[] {
   let acc = 0
   let bits = 0
   const ret: number[] = []
   const maxv = (1 << toBits) - 1
   for (const value of data) {
-    if (value < 0 || value >> fromBits !== 0) throw new Error('invalid data for bit conversion')
+    if (value < 0 || value >> fromBits !== 0)
+      throw new Error('invalid data for bit conversion')
     acc = (acc << fromBits) | value
     bits += fromBits
     while (bits >= toBits) {
@@ -68,6 +74,6 @@ export function decodeBech32(input: string): { prefix: string; hex: string } {
   }
   const bytes = convertBits(data.slice(0, -6), 5, 8, false)
   if (bytes.length !== 32) throw new Error('unexpected bech32 payload length')
-  const hex = bytes.map(b => b.toString(16).padStart(2, '0')).join('')
+  const hex = bytes.map((b) => b.toString(16).padStart(2, '0')).join('')
   return { prefix, hex }
 }

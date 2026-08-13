@@ -10,9 +10,14 @@ const inputSpec = InputSpec.of({
     const urls = await getPairingUrls(effects)
     return {
       name: i18n('Pairing Address/URL'),
-      description: i18n('The address the Buzz mobile app will use when scanning a QR code to pair.'),
+      description: i18n(
+        'The address the Buzz mobile app will use when scanning a QR code to pair.',
+      ),
       warning: null,
-      values: urls.reduce((obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }), {}),
+      values: urls.reduce(
+        (obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }),
+        {},
+      ),
       default: '',
     }
   }),
@@ -22,7 +27,9 @@ export const setPairingUrl = sdk.Action.withInput(
   'set-pairing-url',
   async () => ({
     name: i18n('Set Pairing Address/URL'),
-    description: i18n('Choose which address the mobile app should use to pair with this relay.'),
+    description: i18n(
+      'Choose which address the mobile app should use to pair with this relay.',
+    ),
     warning: i18n(
       "Only needed if the LAN address doesn't work for pairing -- for example, if your mobile app's own TLS trust store won't accept this box's local certificate. A tunnel or clearnet address avoids that.",
     ),
@@ -31,7 +38,9 @@ export const setPairingUrl = sdk.Action.withInput(
     visibility: 'enabled',
   }),
   inputSpec,
-  async ({ effects }) => ({ url: (await storeJson.read(s => s.pairingUrl).once()) || undefined }),
+  async ({ effects }) => ({
+    url: (await storeJson.read((s) => s.pairingUrl).once()) || undefined,
+  }),
   async ({ effects, input }) => {
     await storeJson.merge(effects, { pairingUrl: input.url })
   },

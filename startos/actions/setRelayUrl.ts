@@ -12,7 +12,10 @@ const inputSpec = InputSpec.of({
       name: i18n('Address/URL'),
       description: i18n('The address clients will use to reach this relay.'),
       warning: null,
-      values: urls.reduce((obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }), {}),
+      values: urls.reduce(
+        (obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }),
+        {},
+      ),
       default: '',
     }
   }),
@@ -22,14 +25,20 @@ export const setRelayUrl = sdk.Action.withInput(
   'set-relay-url',
   async () => ({
     name: i18n('Set Relay Address/URL'),
-    description: i18n('Choose which address Buzz Desktop and invite links should use to reach this relay.'),
-    warning: i18n('Changing this does not update links you already shared — anyone using the old address will need the new one.'),
+    description: i18n(
+      'Choose which address Buzz Desktop and invite links should use to reach this relay.',
+    ),
+    warning: i18n(
+      'Changing this does not update links you already shared — anyone using the old address will need the new one.',
+    ),
     allowedStatuses: 'any',
     group: null,
     visibility: 'enabled',
   }),
   inputSpec,
-  async ({ effects }) => ({ url: (await storeJson.read(s => s.relayUrl).once()) || undefined }),
+  async ({ effects }) => ({
+    url: (await storeJson.read((s) => s.relayUrl).once()) || undefined,
+  }),
   async ({ effects, input }) => {
     await storeJson.merge(effects, { relayUrl: input.url })
   },
