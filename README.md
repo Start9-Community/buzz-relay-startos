@@ -62,6 +62,8 @@ The `buzz-relay` image runs as a non-root `buzz` user (uid 1000) internally. A o
 
 ## Installation and First-Run Flow
 
+This isn't on a registry yet -- grab `buzz-relay_x86_64.s9pk` or `buzz-relay_aarch64.s9pk` (matching your box's architecture) from this repo's [Releases](https://github.com/tronsington/buzz-relay-startos/releases) page, then in StartOS: **System > Sideload Service**, select the file, and install. Once installed, updates work the same way -- sideload a newer release's `.s9pk` over the existing install.
+
 This package skips Buzz's interactive setup entirely:
 
 - Every internal secret (database/cache passwords, MinIO keys, the relay's signing key, the git-hook HMAC secret) is generated automatically at install -- nothing to configure.
