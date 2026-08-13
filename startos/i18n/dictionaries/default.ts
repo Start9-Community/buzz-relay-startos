@@ -62,6 +62,13 @@ const dict = {
   'Remove a Nostr identity from this relay.': 51,
   'This immediately revokes their access. They can be re-added later with Add Member.': 52,
   'Member Removed': 53,
+  // actions/setPairingUrl.ts, init/watchPairingUrl.ts
+  'Pairing Address/URL': 54,
+  'The address the Buzz mobile app will use when scanning a QR code to pair.': 55,
+  'Set Pairing Address/URL': 56,
+  'Choose which address the mobile app should use to pair with this relay.': 57,
+  "Only needed if the LAN address doesn't work for pairing -- for example, if your mobile app's own TLS trust store won't accept this box's local certificate. A tunnel or clearnet address avoids that.": 58,
+  'Your pairing address changed because the previous one is no longer available': 59,
 } as const
 
 /**

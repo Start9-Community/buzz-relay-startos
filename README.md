@@ -87,9 +87,9 @@ Two interfaces, both type `api`:
 | `relay` | 3000 | WebSocket relay, REST API, and Buzz's small bundled web UI, all on one port |
 | `pairing` | 5000 | `buzz-pair-relay`, a separate process bundled in the same image, for NIP-AB mobile device pairing (scanning a QR code from the Buzz mobile app) |
 
-StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces tab rather than `http://`/`https://`, matching what Buzz Desktop and other Nostr clients actually dial. Both are reachable via whatever gateways the user enables -- LAN, Tor, a clearnet domain, Tailscale, or a Cloudflare/StartTunnel tunnel -- with no special-casing per gateway. The `relay` address is user-selectable (**Set Relay Address/URL** action); the `pairing` address auto-defaults to the LAN address and has no manual override in this version, since pairing is inherently a same-LAN action.
+StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces tab rather than `http://`/`https://`, matching what Buzz Desktop and other Nostr clients actually dial. Both are reachable via whatever gateways the user enables -- LAN, Tor, a clearnet domain, Tailscale, or a Cloudflare/StartTunnel tunnel -- with no special-casing per gateway. Both addresses are user-selectable (**Set Relay Address/URL**, **Set Pairing Address/URL**).
 
-**Not yet verified against a real install** -- the pairing sidecar is new in this version; the QR pairing flow itself hasn't been confirmed working end-to-end yet.
+**Confirmed on a real install (2026-08-12):** the LAN `.local` default for `pairing` doesn't work with Buzz Desktop's own pairing client -- its TLS stack doesn't trust the box's local self-signed certificate the way a browser that's installed the StartOS root CA does (`WebSocket connection failed: IO error: invalid peer certificate: UnknownIssuer`). **Set Pairing Address/URL** to a Tor, clearnet, or tunnel address instead. The QR pairing flow itself (past this address-selection step) is still unverified.
 
 ## Actions (StartOS UI)
 
@@ -97,6 +97,7 @@ StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces
 | ------ | ------- | ------------- | ----- | ------ |
 | **Set Relay Owner** (`set-owner-pubkey`) | Set the Nostr identity that owns and administers this relay | Only when stopped | `npub1...` or 64-char hex pubkey (explicitly rejects an `nsec1...` private key with a clear error) | -- |
 | **Set Relay Address/URL** (`set-relay-url`) | Choose which reachable address Buzz Desktop and invite links should use | Any status | Select from currently available addresses | -- |
+| **Set Pairing Address/URL** (`set-pairing-url`) | Choose which reachable address the mobile app should use to pair | Any status | Select from currently available addresses | -- |
 | **Add Member** (`add-member`) | Register a new Nostr identity on the relay | Only when running | `npub1...`/hex pubkey + role (member/admin) | `buzz-admin`'s confirmation text |
 | **Remove Member** (`remove-member`) | Remove a member (never the owner -- `buzz-admin` itself refuses that) | Only when running | Select from current members | `buzz-admin`'s confirmation text |
 | **List Members** (`list-members`) | Show current membership and roles | Only when running | -- | Current roster |
@@ -171,6 +172,7 @@ startos_managed_env_vars:
 actions:
   - set-owner-pubkey
   - set-relay-url
+  - set-pairing-url
   - add-member
   - remove-member
   - list-members

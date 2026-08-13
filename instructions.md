@@ -24,16 +24,17 @@ The relay's own address also serves a small bundled web UI (mainly used for invi
 
 ### Mobile pairing
 
-Scanning a QR code from the Buzz mobile app to pair a phone uses a separate address, shown as **Mobile Pairing** on the **Interfaces** tab. It defaults to your LAN address automatically -- no action needed unless you want it reachable somewhere else.
+Scanning a QR code from the Buzz mobile app to pair a phone uses a separate address, shown as **Mobile Pairing** on the **Interfaces** tab. It defaults to your LAN address automatically. **If pairing fails with a certificate error** (the mobile app doesn't trust this box's local certificate), use the **Set Pairing Address/URL** action to point it at a Tor, clearnet, or tunnel address instead.
 
 ### Actions
 
 - **Set Relay Owner** -- change the relay's owner identity. Only available while the service is stopped.
 - **Set Relay Address/URL** -- pick which currently-reachable address (LAN, Tor, a domain, a tunnel) Buzz Desktop and invite links should use. Available anytime.
+- **Set Pairing Address/URL** -- pick which currently-reachable address the mobile app should use when scanning a QR code to pair. Only needed if the LAN default doesn't work. Available anytime.
 - **Add Member** -- register another person's Nostr identity (paste their `npub` or hex pubkey) and choose their role.
 - **Remove Member** -- pick a current member from the list and remove them.
 - **List Members** -- see everyone currently registered and their role.
 
 ## Limitations
 
-- Mobile pairing and the member-management actions above are new and haven't been confirmed working on a real install yet -- if either doesn't behave as described, that's the current known risk area.
+- The member-management actions above are new and haven't been confirmed working on a real install yet -- if they don't behave as described, that's the current known risk area.
