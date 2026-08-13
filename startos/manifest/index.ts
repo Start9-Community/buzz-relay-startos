@@ -16,10 +16,14 @@ export const manifest = setupManifest({
   volumes: ['main', 'db'],
   images: {
     // Confirmed multi-arch (amd64 + arm64) via registry manifest inspection.
-    // ':main' tracks pre-release builds — there is no tagged semver release yet
-    // upstream. Pin to a 'sha-<7>' or release tag once one exists.
+    // Upstream has no tagged semver image release, only ':main' (floating)
+    // and per-commit 'sha-<7>' tags -- pinned to the commit this package has
+    // actually been tested against (2026-08-12) rather than floating, so a
+    // public sideload can't silently pull an untested image out from under
+    // installers. Bump this pin deliberately, with a fresh test pass, not
+    // as a side effect of an unrelated change.
     'buzz-relay': {
-      source: { dockerTag: 'ghcr.io/block/buzz:main' },
+      source: { dockerTag: 'ghcr.io/block/buzz:sha-4749bc7' },
       arch: ['x86_64', 'aarch64'],
     },
     postgres: {

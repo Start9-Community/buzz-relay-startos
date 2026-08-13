@@ -6,9 +6,9 @@ import { sdk } from '../sdk'
 
 // Same auto-default/drift-repair pattern as watchRelayUrl.ts. Originally
 // this had no drift notification, on the assumption pairing would always
-// stay LAN-only -- wrong in practice (a real install needed pair.my2sats.xyz,
-// a tunnel address, because the mobile app's TLS stack doesn't trust the
-// box's local self-signed cert). Now mirrors relay's behavior exactly.
+// stay LAN-only -- wrong in practice (a real install needed a tunnel
+// address, because the mobile app's TLS stack doesn't trust the box's
+// local self-signed cert). Now mirrors relay's behavior exactly.
 export const watchPairingUrl = sdk.setupOnInit(async effects => {
   const urls = await getPairingUrls(effects)
   const current = await storeJson.read(s => s.pairingUrl).const(effects)
