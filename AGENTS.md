@@ -48,10 +48,14 @@ generated once at install (`init/seedFiles.ts`) into `store.json`.
 ## Versioning
 
 Each shipped change bumps `startos/versions/current.ts`'s `version`
-(`<semver>:<revision>` -- StartOS's own `exver` format). Each past version
-gets its own file (`versions/v<semver_with_underscores>.ts`, e.g.
-`v1_0_0_0.ts`) and is added to `versionGraph`'s `other: [...]` array in
-`versions/index.ts` -- `current` must stay the first/sole "current" entry.
+(`<semver>:<revision>` -- StartOS's own ExVer format). **Bump `current.ts`
+in place; don't spin off a historical version file unless the bump
+genuinely needs a migration.** `other: []` already covers every prior
+revision via `VersionGraph`'s synthesized range vertex -- a historical
+file only earns its place when its *own* migration must run in sequence
+on the way up (see `../start-technologies/projects/start-sdk/docs/src/versions.md`
+"When to Create a New Version File" -- read it before touching
+`versions/`, this has already been gotten wrong once in this repo).
 Bump the revision (`:N`) for ordinary releases; bump the semver itself for
 a real milestone (e.g. pairing/member-management moving from "shipped but
 unverified" to confirmed-working, or a scope change like adding
@@ -60,7 +64,9 @@ what a StartOS user sees in the update dialog, not an internal changelog.
 Migrations (`up`/`down`) are for `store.json`/volume-layout changes only;
 most releases' migrations are no-ops (`async () => {}`), not `IMPOSSIBLE`
 -- reserve `IMPOSSIBLE` for genuinely irreversible/non-reconstructible
-changes.
+changes. Tag each release `v<upstream>_<revision>` (e.g. `v1.0.0_1`),
+pushed individually (`git push origin <tag>`), matching the version
+string with `:` replaced by `_` -- no package-name prefix.
 
 ## Inspecting a running install
 
