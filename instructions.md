@@ -37,4 +37,4 @@ Scanning a QR code from the Buzz mobile app to pair a phone uses a separate addr
 
 ## Limitations
 
-- The member-management actions above are new and haven't been confirmed working on a real install yet -- if they don't behave as described, that's the current known risk area.
+- Closed relay only -- membership is owner-invite-only, with no open-registration mode.

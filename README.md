@@ -89,7 +89,7 @@ Two interfaces, both type `api`:
 
 StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces tab rather than `http://`/`https://`, matching what Buzz Desktop and other Nostr clients actually dial. Both are reachable via whatever gateways the user enables -- LAN, Tor, a clearnet domain, Tailscale, or a Cloudflare/StartTunnel tunnel -- with no special-casing per gateway. Both addresses are user-selectable (**Set Relay Address/URL**, **Set Pairing Address/URL**).
 
-**Confirmed on a real install (2026-08-12):** the LAN `.local` default for `pairing` doesn't work with Buzz Desktop's own pairing client -- its TLS stack doesn't trust the box's local self-signed certificate the way a browser that's installed the StartOS root CA does (`WebSocket connection failed: IO error: invalid peer certificate: UnknownIssuer`). **Set Pairing Address/URL** to a Tor, clearnet, or tunnel address instead. The QR pairing flow itself (past this address-selection step) is still unverified.
+**Confirmed on a real install (2026-08-12):** the LAN `.local` default for `pairing` doesn't work with Buzz Desktop's own pairing client -- its TLS stack doesn't trust the box's local self-signed certificate the way a browser that's installed the StartOS root CA does (`WebSocket connection failed: IO error: invalid peer certificate: UnknownIssuer`). **Set Pairing Address/URL** to a Tor, clearnet, or tunnel address instead. **With that done, the full QR pairing flow is confirmed working end-to-end on real hardware (2026-08-12, v1.0.0:1).**
 
 ## Actions (StartOS UI)
 
@@ -102,7 +102,7 @@ StartOS's `schemeOverride` makes both show as `ws://`/`wss://` in the Interfaces
 | **Remove Member** (`remove-member`) | Remove a member (never the owner -- `buzz-admin` itself refuses that) | Only when running | Select from current members | `buzz-admin`'s confirmation text |
 | **List Members** (`list-members`) | Show current membership and roles | Only when running | -- | Current roster |
 
-**Not yet verified against a real install** -- these three wrap `buzz-admin` (bundled in the same image) via `sdk.SubContainer.withTemp()`; typechecked, but not yet packed or exercised against a live relay.
+**Confirmed on a real install (2026-08-12, v1.0.0:1)** -- Add/Remove/List Member all wrap `buzz-admin` (bundled in the same image) via `sdk.SubContainer.withTemp()`.
 
 ## Backups and Restore
 
@@ -128,7 +128,7 @@ None. PostgreSQL, Redis, and MinIO are bundled as private sidecars dedicated to 
 ## Limitations and Differences
 
 1. **Closed relay only.** No open-registration mode -- membership is owner-invite-only. Upstream supports both.
-2. **Mobile app pairing and the member-management actions are implemented but not yet verified against a real install** (see the Network Access and Actions sections above). If either doesn't work as described, that's the current known risk area, not a documented-and-confirmed feature.
+2. **Mobile app pairing and the member-management actions are both confirmed working end-to-end on real hardware (2026-08-12, v1.0.0:1)** -- see the Network Access section above for pairing's one-time address caveat.
 3. **The relay's owner pubkey and address are chosen once via StartOS actions**, not upstream's interactive setup wizard -- this package never runs it.
 
 ## What Is Unchanged from Upstream
