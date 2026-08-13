@@ -19,15 +19,20 @@ Work this package's `TODO.md` from top to bottom. Keep `README.md` (architecture
 
 ## Architecture, in one paragraph
 
-`startos/main.ts` wires 4 daemons: `postgres` (own volume `db`), `redis`
-(persisted, not ephemeral -- see gotcha below), `minio` + a `minio-init`
-oneshot (bucket creation), and `buzz-relay` (the actual relay binary,
-gated on all three via `requires`). Two setup actions
-(`actions/setOwnerPubkey.ts`, `actions/setRelayUrl.ts`) collect the only
-two things that can't be auto-generated: the owner's Nostr identity and
-the relay's public address. Everything else (DB/cache/storage passwords,
-the relay's signing key) is generated once at install
-(`init/seedFiles.ts`) into `store.json`.
+`startos/main.ts` wires: `postgres` (own volume `db`), `redis` (persisted,
+not ephemeral -- see gotcha below), `minio` + a `minio-init` oneshot
+(bucket creation), a `chown-git` oneshot (fixes `buzz-relay`'s non-root
+git-volume permissions -- see gotcha below), `pairing-relay`
+(`buzz-pair-relay`, a third binary in the same image, for NIP-AB mobile
+QR pairing on port 5000), and `buzz-relay` itself (gated on all of the
+above via `requires`). Actions collect the things that can't be
+auto-generated or need to change live: `setOwnerPubkey` (owner identity,
+only-stopped), `setRelayUrl`/`setPairingUrl` (which reachable address
+Buzz Desktop / the mobile app should use, any status, auto-defaulted to
+LAN `.local` on install), and `addMember`/`removeMember`/`listMembers`
+(wrap the bundled `buzz-admin` CLI via `buzzAdmin.ts`, only-running).
+Everything else (DB/cache/storage passwords, the relay's signing key) is
+generated once at install (`init/seedFiles.ts`) into `store.json`.
 
 ## Gotchas that cost real debugging time — don't re-derive these
 
@@ -37,6 +42,25 @@ the relay's signing key) is generated once at install
 - **`/_readiness` only checks Postgres/Redis, never S3.** This is why the standalone `media-storage` health check exists (hits MinIO's own `/minio/health/live` directly) — without it, a broken object-storage connection is invisible even though it breaks every media upload and git push.
 - **Nostr pubkeys are npub (bech32) in the wild, never raw hex.** `startos/nostr.ts` is a small self-contained NIP-19 bech32 decoder (no dependency) — reuse it for any future field that collects a pubkey. `setOwnerPubkey.ts` accepts `npub1...` (decoded to hex), explicitly rejects `nsec1...` with a clear error (a real user pasted their private key's hex by mistake — both are 64 hex chars, indistinguishable by format alone), and still accepts raw hex for anyone who already has it. Don't add a new pubkey-collecting field that's hex-only.
 - **Every image except `buzz-relay` self-heals its own ownership.** Postgres's entrypoint chowns `PGDATA` itself at startup; redis/minio run as root. The `chown-git` oneshot is only needed for `buzz-relay`'s non-root, non-self-healing image — don't add it defensively to the others.
+- **`relayUrl`/`pairingUrl` changes via their actions don't take effect until `main.ts` re-runs.** Both are baked into daemon env once, at the top of `setupMain`, via `storeJson.read().const(effects)` — `.const()` (despite the name) is the *reactive* read; it reruns the calling context when the value changes, so a store write does eventually restart the daemon graph with the new env. But there is no visible "restarting..." feedback in the Actions UI, so **a real real-hardware pairing failure and "the user just hadn't run the action yet" look identical from a support screenshot alone** — confirm the relevant `set-*-url` action was actually run before treating a repeat of the same cert/connection error as a new bug.
+- **Mobile pairing's LAN `.local` default doesn't work with Buzz Desktop's pairing client.** Its Rust TLS stack doesn't trust this box's self-signed local certificate the way a browser that's installed the StartOS root CA does (`WebSocket connection failed: IO error: invalid peer certificate: UnknownIssuer`). Point `setPairingUrl` at a Tor/clearnet/tunnel address instead — this is expected, not a bug, until/unless upstream's pairing client learns to trust StartOS's local CA.
+
+## Versioning
+
+Each shipped change bumps `startos/versions/current.ts`'s `version`
+(`<semver>:<revision>` -- StartOS's own `exver` format). Each past version
+gets its own file (`versions/v<semver_with_underscores>.ts`, e.g.
+`v1_0_0_0.ts`) and is added to `versionGraph`'s `other: [...]` array in
+`versions/index.ts` -- `current` must stay the first/sole "current" entry.
+Bump the revision (`:N`) for ordinary releases; bump the semver itself for
+a real milestone (e.g. pairing/member-management moving from "shipped but
+unverified" to confirmed-working, or a scope change like adding
+open-registration). Write real release notes in all 5 locales -- they're
+what a StartOS user sees in the update dialog, not an internal changelog.
+Migrations (`up`/`down`) are for `store.json`/volume-layout changes only;
+most releases' migrations are no-ops (`async () => {}`), not `IMPOSSIBLE`
+-- reserve `IMPOSSIBLE` for genuinely irreversible/non-reconstructible
+changes.
 
 ## Inspecting a running install
 
