@@ -78,32 +78,22 @@ function getInterfaceAddresses(
           .find((i) => i.id === interfaceId)
       if (!iface) return []
       return domainsOnly
-        ? iface.addressInfo
-            .filter({
-              visibility: 'public',
-              // `kind: 'domain'` alone also matches 'private-domain', which is
-              // LAN-only and never publicly resolvable. This is as far as
-              // package code can narrow it: `HostnameInfo` carries no ACME
-              // provider, so whether the certificate is actually Let's
-              // Encrypt's rather than StartOS's local CA is the user's choice
-              // when they add the domain -- which is why the action's warning
-              // names Let's Encrypt explicitly.
-              predicate: (h) => h.metadata.kind === 'public-domain' && h.ssl,
-            })
-            .format()
+        ? iface.addressInfo.filter({ kind: 'domain' }).format()
         : iface.addressInfo.nonLocal.format()
     })
     .once()
 }
 
-// A publicly-trusted domain, and nothing else. The relay's address is permanent
-// (see store.json.ts), and upstream builds its WebSocket clients against
-// tokio-tungstenite's `rustls-tls-webpki-roots` feature -- the Mozilla root set
-// compiled into the binary, system trust store ignored. A .local address signed
-// by this box's own CA, a private domain, and a .onion address no public CA can
-// issue for are all rejected there no matter what the user installs on their
-// device, so offering any of them would only let someone bind their community
-// to an address its clients can never reach.
+// Domains, public or private (`kind: 'domain'` matches both). Buzz itself
+// accepts any host; this narrows to the ones that still make sense years from
+// now, because the binding cannot be revisited. A domain is a name its owner
+// controls and resolves on 443; an mDNS name, a DHCP/ISP-assigned IP, and
+// StartOS's high external ports all move. Those ports are the sharp edge --
+// they are reassigned across reinstalls (observed: 58891 -> 58625 -> 50306),
+// and a LAN or IP address carries one in its URL, so a restore onto a different
+// box would strand the community permanently. Whether a given domain's
+// certificate is publicly trusted is reported by the client-reachability health
+// check in main.ts rather than pre-judged here.
 export function getRelayDomains(effects: T.Effects): Promise<string[]> {
   return getInterfaceAddresses(effects, relayHostId, relayInterfaceId, true)
 }

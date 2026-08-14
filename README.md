@@ -68,7 +68,7 @@ This package skips Buzz's interactive setup entirely:
 
 - Every internal secret (database/cache passwords, MinIO keys, the relay's signing key, the git-hook HMAC secret) is generated automatically at install -- nothing to configure.
 - **A chain of critical tasks blocks first start**, following the `synapse-startos` pattern. Install raises **Set Relay Address/URL**; answering it raises **Set Relay Owner**. The service will not start until both are set. Neither action is browsable -- `set-relay-url` is `visibility: 'hidden'` and reached only through its task.
-- The address is deliberately not auto-defaulted, and the picker offers public domains only. Upstream creates the relay's community under that address on first start and provides no way to move it, so the user has to add a domain to the interface before the task can be answered at all.
+- The address is deliberately not auto-defaulted, and the picker offers domains only -- public or private. Upstream creates the relay's community under that address on first start and provides no way to move it, so the user has to add a domain to the interface before the task can be answered at all.
 - Migrations run automatically on every start (`BUZZ_AUTO_MIGRATE=true`) -- the upstream image embeds them, but the flag itself defaults off in the raw binary and must be set explicitly.
 
 ## Configuration Management
@@ -100,7 +100,7 @@ The LAN `.local` address does not work for `pairing` with Buzz Desktop's own pai
 | Action | Purpose | Availability | Input | Output |
 | ------ | ------- | ------------- | ----- | ------ |
 | **Set Relay Owner** (`set-owner-pubkey`) | Set the Nostr identity that owns and administers this relay | Only when stopped | `npub1...` or 64-char hex pubkey (explicitly rejects an `nsec1...` private key with a clear error) | -- |
-| **Set Relay Address/URL** (`set-relay-url`) | Choose the permanent address the community is created under. Rejects any change once bound. `visibility: 'hidden'` -- not user-browsable, raised as a task | Only when stopped | Select from public domains on the relay interface | -- |
+| **Set Relay Address/URL** (`set-relay-url`) | Choose the permanent address the community is created under. Rejects any change once bound. `visibility: 'hidden'` -- not user-browsable, raised as a task | Only when stopped | Select from domains on the relay interface, public or private | -- |
 | **Set Pairing Address/URL** (`set-pairing-url`) | Choose which reachable address the mobile app should use to pair | Any status | Select from currently available addresses | -- |
 | **Add Member** (`add-member`) | Register a new Nostr identity on the relay | Only when running | `npub1...`/hex pubkey + role (member/admin) | `buzz-admin`'s confirmation text |
 | **Remove Member** (`remove-member`) | Remove a member (never the owner -- `buzz-admin` itself refuses that) | Only when running | Select from current members | `buzz-admin`'s confirmation text |
@@ -127,6 +127,7 @@ Tasks chain rather than appearing together. `seedFiles` raises **Set Relay Addre
 | `pairing-relay` | Port-listening check on the pairing sidecar's port | Shown to the user (not internal) |
 | **Buzz Relay** | `GET /_readiness` on the relay's internal health port | 60s grace period (first-boot migrations); only checks Postgres/Redis upstream, not S3 -- see next row |
 | **Media & Git Storage** | `GET /minio/health/live`, standalone check gated on the relay being healthy | Added specifically because the relay's own `/_readiness` does not check S3 -- without this, a broken object-storage connection would otherwise be invisible even though it breaks every media upload and git push |
+| **Reachable by Clients** | `curl https://<bound host>/` from inside the relay container, dialing the community address the way a client would | Nothing in the relay reports whether the address it was bound to actually works. `curl` exit 60 (TLS verification) is reported distinctly -- the address answers but its certificate is not publicly trusted, so joining devices need this server's root certificate installed -- as against a plain unreachable result, which points at DNS or forwarding |
 
 ## Dependencies
 
@@ -136,7 +137,9 @@ None. PostgreSQL, Redis, and MinIO are bundled as private sidecars dedicated to 
 
 1. **One address, chosen before first start, permanent thereafter.** Upstream resolves a request's community from its connection host, stores that host in `communities.host` (`UNIQUE` on `lower(host)`, with no alias table), and creates a *new, empty* community for any host it has not seen. So a relay serves exactly one of the box's addresses no matter how many gateways StartOS exposes, and re-pointing it would leave the original members, channels and messages stranded under the old host with no upstream path to move them. This package binds the address at first start and refuses to change it; moving to a different address means reinstalling.
 
-   **The address picker offers public domains only.** Upstream builds its WebSocket clients against `tokio-tungstenite`'s `rustls-tls-webpki-roots` feature — the Mozilla root set compiled into the binary, with the system trust store ignored — so a CA the user installs on their device changes nothing for those clients. A `.onion` address cannot be served over `wss` at all, since no public CA issues for `.onion`, and the LAN `.local` address is signed by the box's own CA and rejected on that path (confirmed for mobile pairing: `invalid peer certificate: UnknownIssuer`). Offering either would only let someone bind their community permanently to an address its clients can never reach, so `getRelayDomains` filters the select to `{ kind: 'domain' }`, matching `synapse-startos`'s treatment of its equally-permanent `server_name`.
+   **The picker offers domains only — public or private.** Buzz itself accepts any host; the narrowing is ours, on the same reasoning `synapse-startos` applies to its equally-permanent `server_name`. Because the binding cannot be revisited, the criterion is a stable identity: a domain is a name its owner controls and resolves on 443, while an mDNS name, a DHCP- or ISP-assigned IP, and StartOS's high external ports all move. The ports are the sharp edge — they are reassigned across reinstalls (observed on one box: `58891 → 58625 → 50306`), and a LAN or IP address carries one in its URL, so a restore onto a different box would strand the community permanently. A private domain is included deliberately: it suits an organisation on a LAN or VPN, and can still carry a real Let's Encrypt certificate via DNS-01.
+
+   Certificate trust is **reported, not pre-judged** — see the `client-reachable` health check below.
 2. **Closed relay only.** No open-registration mode -- membership is owner-invite-only. Upstream supports both.
 3. **The relay's owner pubkey and address are chosen via StartOS actions**, not upstream's interactive setup wizard -- this package never runs it.
 4. **The pairing sidecar's LAN address is unusable with the current mobile pairing client** -- see Network Access and Interfaces.

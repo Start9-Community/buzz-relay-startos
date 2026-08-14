@@ -25,7 +25,7 @@ const dict = {
   'Set Relay Address/URL': 18,
   'Address/URL': 21,
   'Choose a permanent address/URL for your Buzz relay.': 19,
-  'This can never be changed. You must first add a public domain to the Buzz Relay interface, using Let’s Encrypt as the certificate provider.': 20,
+  'This can never be changed. Every device that joins must trust this address’s certificate: a public domain added to the Buzz Relay interface with Let’s Encrypt works everywhere, while the local address requires installing this server’s root certificate on every device.': 20,
   'The address clients will use to reach this relay. It becomes the permanent identity of your community.': 22,
   'Choose the permanent address/URL of your Buzz relay': 60,
   'This relay is reachable only at the address its community was created under, and that address is currently unavailable. Re-enable the gateway that provides it.': 23,
@@ -89,6 +89,12 @@ const dict = {
   'The Nostr identity that administers this relay.': 73,
   'Mobile Pairing Address': 74,
   'Used only while scanning a QR code to add a phone. Change it with Set Pairing Address/URL.': 75,
+  // main.ts: client-reachability health check
+  'Reachable by Clients': 76,
+  'No community address is set': 77,
+  'Clients can reach this community': 78,
+  'Reachable, but the certificate is not publicly trusted — every device that joins must install this server’s root certificate first': 79,
+  'Cannot be reached at its community address — check that the address still resolves and is forwarded to this server': 80,
 } as const
 
 /**

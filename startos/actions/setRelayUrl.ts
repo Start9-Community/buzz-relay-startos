@@ -30,7 +30,7 @@ export const setRelayUrl = sdk.Action.withInput(
     name: i18n('Set Relay Address/URL'),
     description: i18n('Choose a permanent address/URL for your Buzz relay.'),
     warning: i18n(
-      'This can never be changed. You must first add a public domain to the Buzz Relay interface, using Let’s Encrypt as the certificate provider.',
+      'This can never be changed. Every device that joins must trust this address\u2019s certificate: a public domain added to the Buzz Relay interface with Let\u2019s Encrypt works everywhere, while the local address requires installing this server\u2019s root certificate on every device.',
     ),
     allowedStatuses: 'only-stopped',
     group: null,

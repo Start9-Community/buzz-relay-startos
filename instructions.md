@@ -9,14 +9,14 @@
 
 A closed, single-owner Buzz relay -- the WebSocket relay, REST API, and a small bundled web UI, all on one interface. PostgreSQL, Redis, and object storage for git repos and media run alongside it as private sidecars, with nothing to configure on your end: every credential is generated automatically.
 
-You need a domain of your own to run Buzz. Buzz's apps trust only the standard public certificate authorities, so a Tor address or your server's local `.local` address cannot be used — a certificate you install on your own devices makes no difference to them.
+You need a domain pointed at this server to run Buzz. Your community lives at one address forever, so it has to be a name you control — a public domain if people will join from anywhere, or a private domain if this is for an organisation on its own network or VPN. Your server's local address and its IP addresses are not offered: they can change, which would strand your community for good.
 
 The relay won't start until you have worked through the tasks StartOS raises, in order.
 
-1. **Add your domain to the Buzz Relay interface**, under the **Interfaces** tab, choosing **Let's Encrypt** as the certificate provider. Do this first — the next task has nothing to offer you until it's done.
+1. **Add your domain to the Buzz Relay interface**, under the **Interfaces** tab. Choose **Let's Encrypt** as the certificate provider — that way every device trusts it with nothing to install. Do this first; the next task has nothing to offer you until it's done.
 2. **Set Relay Address/URL** — pick your domain. **This is permanent.** Buzz creates your community under this exact address the first time the relay starts, and nothing can move it afterward; changing your mind later means starting over from an empty community.
 3. **Set Relay Owner** — paste your `npub1...` address (or its 64-character hex equivalent). This is the identity that administers the relay.
-4. The relay starts, and is ready once its health checks turn green.
+4. The relay starts. Watch the **Reachable by Clients** health check: it dials your community address the way a Buzz app would, and tells you if the address isn't reachable or if its certificate won't be trusted.
 5. Open Buzz Desktop, choose **Join a Community**, and enter your domain.
 
 ## Using Buzz Relay
