@@ -1,36 +1,37 @@
-import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 import { storeJson } from './fileModels/store.json'
-import { MINIO_BUCKET, MINIO_PORT, PAIRING_PORT, POSTGRES_DB, POSTGRES_PATH, POSTGRES_USER, RELAY_HEALTH_PORT, RELAY_PORT } from './utils'
-
-// Fires once, the first time the relay daemon's own readiness check
-// succeeds -- gated on store.json's firstReadyNotified so a health check
-// that polls every 30s doesn't repost it forever. See recipe-notification.md
-// ("gate posts behind a one-shot condition").
-async function notifyFirstReady(effects: T.Effects, relayUrl: string, ownerPubkey: string) {
-  const alreadyNotified = await storeJson.read(s => s.firstReadyNotified).once()
-  if (alreadyNotified) return
-  await storeJson.merge(effects, { firstReadyNotified: true })
-  await sdk.notification.create(effects, {
-    level: 'success',
-    title: i18n('Buzz Relay is Ready'),
-    message: i18n('Connect Buzz Desktop using the address on the Interfaces tab.'),
-    data: [
-      '## Connection details',
-      '',
-      `- **Address:** ${relayUrl}`,
-      `- **Owner pubkey:** ${ownerPubkey}`,
-      '',
-      'Open Buzz Desktop, choose "Join a Community," and paste the address above.',
-    ].join('\n'),
-  })
-}
+import {
+  MINIO_BUCKET,
+  MINIO_PORT,
+  PAIRING_PATH,
+  PAIRING_PORT,
+  POSTGRES_DB,
+  POSTGRES_PATH,
+  POSTGRES_USER,
+  PROXY_PORT,
+  RELAY_HEALTH_PORT,
+  RELAY_PORT,
+} from './utils'
 
 export const main = sdk.setupMain(async ({ effects }) => {
   console.info(i18n('Starting Buzz Relay!'))
 
-  const store = await storeJson.read().const(effects)
+  // Mapped read: only the fields that feed daemon env, so writing boundRelayUrl
+  // just below doesn't re-run setupMain and bounce the whole daemon graph.
+  const store = await storeJson
+    .read((s) => ({
+      pgPassword: s.pgPassword,
+      redisPassword: s.redisPassword,
+      minioAccessKey: s.minioAccessKey,
+      minioSecretKey: s.minioSecretKey,
+      relayPrivateKey: s.relayPrivateKey,
+      gitHookHmacSecret: s.gitHookHmacSecret,
+      ownerPubkey: s.ownerPubkey,
+      relayUrl: s.relayUrl,
+    }))
+    .const(effects)
+
   const pgPassword = store?.pgPassword ?? ''
   const redisPassword = store?.redisPassword ?? ''
   const minioAccessKey = store?.minioAccessKey ?? ''
@@ -38,9 +39,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const relayPrivateKey = store?.relayPrivateKey ?? ''
   const gitHookHmacSecret = store?.gitHookHmacSecret ?? ''
   const ownerPubkey = store?.ownerPubkey ?? ''
-  const relayUrl = store?.relayUrl ?? ''
+
+  // First start binds the community to whichever address the user settled on;
+  // every start after that serves that same host regardless of what relayUrl
+  // now says. Read non-reactively and kept out of the projection above: the
+  // bind write must not invalidate this context. See store.json.ts.
+  const bound = await storeJson.read((s) => s.boundRelayUrl).once()
+  const relayUrl = bound ?? store?.relayUrl ?? ''
+  if (relayUrl && !bound)
+    await storeJson.merge(effects, { boundRelayUrl: relayUrl })
   const relayHostname = relayUrl ? new URL(relayUrl).hostname : ''
-  const pairingUrl = store?.pairingUrl ?? ''
+  // Caddy serves the pairing sidecar at PAIRING_PATH on this same address, so
+  // there is nothing to look up or store -- it is the community's own URL.
+  const pairingUrl = relayUrl ? new URL(PAIRING_PATH, relayUrl).href : ''
 
   /**
    * ======================== PostgreSQL sidecar ========================
@@ -111,10 +122,30 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   /**
    * ======================== Mobile pairing sidecar ========================
-   * A third binary bundled in the same image (buzz-pair-relay), for NIP-AB
-   * QR-code mobile device pairing. No persistent storage of its own.
+   * A third binary bundled in the same image (buzz-pair-relay), for QR-code
+   * mobile device pairing. No persistent storage of its own.
    */
-  const pairingSub = sdk.SubContainer.of(effects, { imageId: 'buzz-relay' }, sdk.Mounts.of(), 'pairing-relay')
+  const pairingSub = sdk.SubContainer.of(
+    effects,
+    { imageId: 'buzz-relay' },
+    sdk.Mounts.of(),
+    'pairing-relay',
+  )
+
+  /**
+   * ======================== Caddy (public entrypoint) ========================
+   * The only process StartOS binds. Everything else listens on loopback.
+   */
+  const caddySub = sdk.SubContainer.of(
+    effects,
+    { imageId: 'caddy' },
+    sdk.Mounts.of().mountAssets({
+      subpath: 'Caddyfile',
+      mountpoint: '/etc/caddy/Caddyfile',
+      type: 'file',
+    }),
+    'caddy',
+  )
 
   return (
     sdk.Daemons.of(effects)
@@ -143,7 +174,10 @@ export const main = sdk.setupMain(async ({ effects }) => {
             ])
             return result.exitCode === 0
               ? { result: 'success', message: i18n('PostgreSQL is ready') }
-              : { result: 'loading', message: i18n('Waiting for PostgreSQL to be ready') }
+              : {
+                  result: 'loading',
+                  message: i18n('Waiting for PostgreSQL to be ready'),
+                }
           },
         },
         requires: [],
@@ -151,15 +185,30 @@ export const main = sdk.setupMain(async ({ effects }) => {
       .addDaemon('redis', {
         subcontainer: redisSub,
         exec: {
-          command: sdk.useEntrypoint(['--requirepass', redisPassword, '--appendonly', 'yes']),
+          command: sdk.useEntrypoint([
+            '--requirepass',
+            redisPassword,
+            '--appendonly',
+            'yes',
+          ]),
         },
         ready: {
           display: null, // internal sidecar
           fn: async () => {
-            const result = await redisSub.exec(['redis-cli', '--no-auth-warning', '-a', redisPassword, 'ping'])
-            return result.exitCode === 0 && result.stdout.toString().trim() === 'PONG'
+            const result = await redisSub.exec([
+              'redis-cli',
+              '--no-auth-warning',
+              '-a',
+              redisPassword,
+              'ping',
+            ])
+            return result.exitCode === 0 &&
+              result.stdout.toString().trim() === 'PONG'
               ? { result: 'success', message: i18n('Redis is ready') }
-              : { result: 'loading', message: i18n('Waiting for Redis to be ready') }
+              : {
+                  result: 'loading',
+                  message: i18n('Waiting for Redis to be ready'),
+                }
           },
         },
         requires: [],
@@ -167,26 +216,45 @@ export const main = sdk.setupMain(async ({ effects }) => {
       .addDaemon('minio', {
         subcontainer: minioSub,
         exec: {
-          command: sdk.useEntrypoint(['server', '/data', '--console-address', ':9001']),
+          command: sdk.useEntrypoint([
+            'server',
+            '/data',
+            '--console-address',
+            ':9001',
+          ]),
           env: {
             MINIO_ROOT_USER: minioAccessKey,
             MINIO_ROOT_PASSWORD: minioSecretKey,
           },
         },
         ready: {
-          display: null, // internal sidecar
+          // Shown, unlike the other sidecars: the relay's own /_readiness
+          // checks Postgres and Redis but never S3, so a broken object store is
+          // invisible while every media upload and git push fails.
+          display: i18n('Media & Git Storage'),
           fn: () =>
-            sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${MINIO_PORT}/minio/health/live`, {
-              successMessage: i18n('MinIO is ready'),
-              errorMessage: i18n('Waiting for MinIO to be ready'),
-            }),
+            sdk.healthCheck.checkWebUrl(
+              effects,
+              `http://127.0.0.1:${MINIO_PORT}/minio/health/live`,
+              {
+                successMessage: i18n('Media and git storage are reachable'),
+                errorMessage: i18n(
+                  'Media and git storage are unreachable — uploads and git operations will fail',
+                ),
+              },
+            ),
         },
         requires: [],
       })
       // One-shot: create the media bucket. Runs every start (idempotent via
       // --ignore-existing), mirrors deploy/compose/compose.yml's minio-init.
       .addOneshot('minio-init', {
-        subcontainer: sdk.SubContainer.of(effects, { imageId: 'minio-mc' }, sdk.Mounts.of(), 'minio-mc'),
+        subcontainer: sdk.SubContainer.of(
+          effects,
+          { imageId: 'minio-mc' },
+          sdk.Mounts.of(),
+          'minio-mc',
+        ),
         exec: {
           command: [
             '/bin/sh',
@@ -219,16 +287,22 @@ export const main = sdk.setupMain(async ({ effects }) => {
         exec: {
           command: ['/usr/local/bin/buzz-pair-relay'],
           env: {
-            BUZZ_PAIR_RELAY_BIND_ADDR: `0.0.0.0:${PAIRING_PORT}`,
+            // Loopback, matching the binary's own default. It runs with no auth
+            // and no persistence and leaves path restriction and connection
+            // limiting to the proxy, so it must never be bound publicly.
+            BUZZ_PAIR_RELAY_BIND_ADDR: `127.0.0.1:${PAIRING_PORT}`,
           },
         },
         ready: {
-          display: i18n('Mobile Pairing'),
+          display: null, // liveness only; a failure restarts the service
           fn: () =>
             sdk.healthCheck.checkPortListening(effects, PAIRING_PORT, {
               successMessage: i18n('Mobile pairing is ready'),
               errorMessage: i18n('Mobile pairing is not ready'),
             }),
+          // Same race as caddy below. This binary binds almost immediately so it
+          // has been winning it, but nothing guarantees that.
+          gracePeriod: 30_000,
         },
         requires: [],
       })
@@ -237,7 +311,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
         exec: {
           command: sdk.useEntrypoint(),
           env: {
-            BUZZ_BIND_ADDR: `0.0.0.0:${RELAY_PORT}`,
+            BUZZ_BIND_ADDR: `127.0.0.1:${RELAY_PORT}`,
             BUZZ_HEALTH_PORT: String(RELAY_HEALTH_PORT),
             DATABASE_URL: `postgres://${POSTGRES_USER}:${pgPassword}@127.0.0.1:5432/${POSTGRES_DB}`,
             REDIS_URL: `redis://:${redisPassword}@127.0.0.1:6379`,
@@ -257,58 +331,64 @@ export const main = sdk.setupMain(async ({ effects }) => {
             BUZZ_REQUIRE_AUTH_TOKEN: 'true',
             BUZZ_REQUIRE_RELAY_MEMBERSHIP: 'true',
             BUZZ_ALLOW_NIP_OA_AUTH: 'true',
-            // Set via the set-owner-pubkey action, gated by a critical setup
-            // task (init/watchOwnerPubkey.ts) — the service can't reach this
-            // daemon until it's set.
+            // Set via the set-owner-pubkey action, which actions/setRelayUrl.ts
+            // raises as a critical task — the service can't start until it is.
             RELAY_OWNER_PUBKEY: ownerPubkey,
-            // Auto-defaulted to the LAN address and kept in sync by
-            // init/watchRelayUrl.ts; changeable anytime via the
-            // set-relay-url action. Already ws/wss (schemeOverride in
-            // interfaces.ts), already the address of whichever gateway
-            // (LAN/Tor/clearnet/Tailscale/StartTunnel/Cloudflare) is active.
+            // Already ws/wss: schemeOverride in interfaces.ts.
             RELAY_URL: relayUrl,
             BUZZ_DOMAIN: relayHostname,
             BUZZ_MEDIA_BASE_URL: `https://${relayHostname}/media`,
             BUZZ_CORS_ORIGINS: `https://${relayHostname}`,
-            // Advertised in the relay's NIP-11 doc so clients know where to
-            // reach the mobile pairing sidecar. Auto-defaulted the same way
-            // as relayUrl (see init/watchPairingUrl.ts).
+            // Published as `pairing_relay_url` in the relay's NIP-11 document,
+            // which is how a Buzz client discovers the pairing sidecar — so it
+            // has to be an address that client can actually reach. Sharing the
+            // relay's host (interfaces.ts) is what guarantees that.
             BUZZ_PAIRING_RELAY_URL: pairingUrl,
           },
         },
         ready: {
           display: i18n('Buzz Relay'),
-          fn: async () => {
-            const result = await sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`, {
-              successMessage: i18n('Buzz Relay is ready'),
-              errorMessage: i18n('Buzz Relay is not ready'),
-            })
-            if (result.result === 'success') {
-              await notifyFirstReady(effects, relayUrl, ownerPubkey)
-            }
-            return result
-          },
+          fn: () =>
+            sdk.healthCheck.checkWebUrl(
+              effects,
+              `http://127.0.0.1:${RELAY_HEALTH_PORT}/_readiness`,
+              {
+                successMessage: i18n('Buzz Relay is ready'),
+                errorMessage: i18n('Buzz Relay is not ready'),
+              },
+            ),
           // First boot runs migrations before the health port comes up.
           gracePeriod: 60_000,
         },
         // pairing-relay: upstream's own compose.pairing.yml has the main
         // relay depend_on pairing-relay's service_started (not healthy) --
         // mirrored here so the relay never starts before it exists.
-        requires: ['postgres', 'redis', 'minio-init', 'chown-git', 'pairing-relay'],
+        requires: [
+          'postgres',
+          'redis',
+          'minio-init',
+          'chown-git',
+          'pairing-relay',
+        ],
       })
-      // Standalone: /_readiness above only checks Postgres/Redis (see Phase 0
-      // spike notes), so a broken S3 connection is otherwise invisible to the
-      // user even though it breaks every media upload and git push.
-      .addHealthCheck('media-storage', {
+      .addDaemon('caddy', {
+        subcontainer: caddySub,
+        exec: { command: sdk.useEntrypoint() },
         ready: {
-          display: i18n('Media & Git Storage'),
+          display: null, // liveness only; a failure restarts the service
           fn: () =>
-            sdk.healthCheck.checkWebUrl(effects, `http://127.0.0.1:${MINIO_PORT}/minio/health/live`, {
-              successMessage: i18n('Media and git storage are reachable'),
-              errorMessage: i18n('Media and git storage are unreachable — uploads and git operations will fail'),
+            sdk.healthCheck.checkPortListening(effects, PROXY_PORT, {
+              successMessage: i18n('The relay is reachable'),
+              errorMessage: i18n('The relay is not reachable'),
             }),
+          // checkPortListening reports `failure`, not `starting`, before the
+          // port is bound, and a failed daemon restarts the service. Caddy takes
+          // about a second to adapt its config and listen, so without this the
+          // first poll can land in that gap and crash-loop the whole package.
+          gracePeriod: 30_000,
         },
-        requires: ['buzz-relay'],
+        // Both are loopback-only, so nothing is reachable until Caddy is up.
+        requires: ['buzz-relay', 'pairing-relay'],
       })
   )
 })

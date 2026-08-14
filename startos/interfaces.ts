@@ -1,29 +1,34 @@
 import { T } from '@start9labs/start-sdk'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
-import { PAIRING_PORT, RELAY_PORT } from './utils'
+import { PROXY_PORT } from './utils'
 
-// Host ids (the sdk.MultiHost.of groups) and interface ids — exported so
-// actions/setRelayUrl.ts and setPairingUrl.ts can look these up at runtime.
-export const relayHostId = 'relay'
+// One host, one binding, one interface -- Caddy's port. Both upstream processes
+// sit behind it on loopback, so there is a single address to add a domain to and
+// nothing to keep in sync. Adding a second binding would also reintroduce
+// StartOS's public-domain isolation: a public domain is scoped to the binding it
+// was added to and auto-disabled on every sibling, so a second binding would
+// silently lose the domain (start-core, net/host/address.rs).
+export const hostId = 'buzz'
 export const relayInterfaceId = 'relay'
-export const pairingHostId = 'pairing'
-export const pairingInterfaceId = 'pairing'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
-  const relayMulti = sdk.MultiHost.of(effects, relayHostId)
-  const relayOrigin = await relayMulti.bindPort(RELAY_PORT, {
+  const multi = sdk.MultiHost.of(effects, hostId)
+  const origin = await multi.bindPort(PROXY_PORT, {
     protocol: 'http',
-    preferredExternalPort: RELAY_PORT,
+    preferredExternalPort: PROXY_PORT,
   })
 
-  // WS relay + REST API + a small bundled web UI all live on this one port.
-  // schemeOverride shows ws/wss instead of http/https in StartOS's own
-  // Interfaces tab, matching what Buzz Desktop / Nostr clients actually dial.
+  // WS relay, REST API, the bundled web UI and the pairing sidecar all reach the
+  // user through this one address. schemeOverride shows ws/wss instead of
+  // http/https in StartOS's own Interfaces tab, matching what Buzz Desktop and
+  // other Nostr clients actually dial.
   const relay = sdk.createInterface(effects, {
     name: i18n('Buzz Relay'),
     id: relayInterfaceId,
-    description: i18n('WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients'),
+    description: i18n(
+      'WebSocket relay and API endpoint for Buzz Desktop and other Nostr clients',
+    ),
     type: 'api',
     masked: false,
     schemeOverride: { ssl: 'wss', noSsl: 'ws' },
@@ -32,54 +37,30 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     query: {},
   })
 
-  // NIP-AB mobile device pairing sidecar (buzz-pair-relay) -- a separate
-  // process on its own port, so it gets its own interface rather than a
-  // path on the main one.
-  const pairingMulti = sdk.MultiHost.of(effects, pairingHostId)
-  const pairingOrigin = await pairingMulti.bindPort(PAIRING_PORT, {
-    protocol: 'http',
-    preferredExternalPort: PAIRING_PORT,
-  })
-
-  const pairing = sdk.createInterface(effects, {
-    name: i18n('Mobile Pairing'),
-    id: pairingInterfaceId,
-    description: i18n('Pairing endpoint the Buzz mobile app connects to when scanning a QR code'),
-    type: 'api',
-    masked: false,
-    schemeOverride: { ssl: 'wss', noSsl: 'ws' },
-    username: null,
-    path: '',
-    query: {},
-  })
-
-  return [await relayOrigin.export([relay]), await pairingOrigin.export([pairing])]
+  return [await origin.export([relay])]
 })
 
-function getInterfaceUrls(effects: T.Effects, hostId: string, interfaceId: string): Promise<string[]> {
+// Domains, public or private (`kind: 'domain'` matches both). Buzz itself
+// accepts any host; this narrows to the ones that still make sense years from
+// now, because the binding cannot be revisited. A domain is a name its owner
+// controls and resolves on 443; an mDNS name, a DHCP/ISP-assigned IP, and
+// StartOS's high external ports all move. Those ports are the sharp edge --
+// they are reassigned across reinstalls (observed: 58891 -> 58625 -> 50306),
+// and a LAN or IP address carries one in its URL, so a restore onto a different
+// box would strand the community permanently.
+//
+// The traversal stays inside the callback so `host` keeps its contextual type:
+// `FilledHost` lives in start-core, which is nested under the SDK rather than a
+// dependency of this package, so it cannot be imported to annotate a helper.
+export function getRelayDomains(effects: T.Effects): Promise<string[]> {
   return sdk.host
-    .getOwn(effects, hostId, host => {
+    .getOwn(effects, hostId, (host) => {
       const iface =
         host &&
         Object.values(host.bindings)
-          .flatMap(b => Object.values(b.interfaces))
-          .find(i => i.id === interfaceId)
-      return iface ? iface.addressInfo.nonLocal.format() : []
+          .flatMap((b) => Object.values(b.interfaces))
+          .find((i) => i.id === relayInterfaceId)
+      return iface ? iface.addressInfo.filter({ kind: 'domain' }).format() : []
     })
-    .const()
-}
-
-// Every address the relay interface is currently reachable at -- LAN
-// .local, Tor, clearnet, or a Tailscale/StartTunnel/Cloudflare-tunnel
-// domain, once the user enables that gateway -- already scheme-corrected
-// to ws/wss via schemeOverride above. Excludes only the internal loopback
-// stub. Modeled on ghost-startos/gitea-startos's
-// getNonLocalUrls/getHttpInterfaceUrls.
-export function getRelayUrls(effects: T.Effects): Promise<string[]> {
-  return getInterfaceUrls(effects, relayHostId, relayInterfaceId)
-}
-
-// Same, for the mobile-pairing interface.
-export function getPairingUrls(effects: T.Effects): Promise<string[]> {
-  return getInterfaceUrls(effects, pairingHostId, pairingInterfaceId)
+    .once()
 }

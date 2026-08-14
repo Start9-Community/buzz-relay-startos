@@ -1,7 +1,7 @@
-import { decodeBech32 } from '../nostr'
-import { i18n } from '../i18n'
 import { storeJson } from '../fileModels/store.json'
+import { i18n } from '../i18n'
 import { sdk } from '../sdk'
+import { toHexPubkey } from '../utils'
 
 const { InputSpec, Value } = sdk
 
@@ -17,7 +17,9 @@ const inputSpec = InputSpec.of({
     patterns: [
       {
         regex: '^([0-9a-fA-F]{64}|npub1[a-z0-9]{58}|nsec1[a-z0-9]{58})$',
-        description: i18n('Must be an npub1... address or a 64-character hex key'),
+        description: i18n(
+          'Must be an npub1... address or a 64-character hex key',
+        ),
       },
     ],
     minLength: null,
@@ -29,36 +31,31 @@ export const setOwnerPubkey = sdk.Action.withInput(
   'set-owner-pubkey',
   async () => ({
     name: i18n('Set Relay Owner'),
-    description: i18n('Set the Nostr public key that owns and administers this relay. Required before the relay can start.'),
-    warning: i18n('Changing this after the relay has already started is not supported. Stop the service first.'),
-    allowedStatuses: 'only-stopped',
+    description: i18n(
+      'Set the Nostr public key that owns and administers this relay. Required before the relay can start.',
+    ),
+    warning: i18n(
+      'If the relay is running, saving this restarts it so the new owner takes effect.',
+    ),
+    allowedStatuses: 'any',
     group: null,
     visibility: 'enabled',
   }),
   inputSpec,
   async ({ effects }) => {
-    const current = await storeJson.read(s => s.ownerPubkey).once()
+    const current = await storeJson.read((s) => s.ownerPubkey).once()
     return { ownerPubkey: current ?? '' }
   },
   async ({ effects, input }) => {
     const raw = input.ownerPubkey.trim()
-    const lower = raw.toLowerCase()
-
-    let hex: string
-    if (lower.startsWith('nsec1')) {
-      // Deliberately not i18n-wrapped -- thrown errors are developer-facing
-      // diagnostics, not translated UI copy (see actions.md conventions).
-      throw new Error('That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.')
-    } else if (lower.startsWith('npub1')) {
-      const decoded = decodeBech32(lower)
-      if (decoded.prefix !== 'npub') {
-        throw new Error(`Expected an npub1... address, got a ${decoded.prefix}1... address.`)
-      }
-      hex = decoded.hex
-    } else {
-      hex = lower
+    if (raw.toLowerCase().startsWith('nsec1')) {
+      throw new Error(
+        i18n(
+          'That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.',
+        ),
+      )
     }
 
-    await storeJson.merge(effects, { ownerPubkey: hex })
+    await storeJson.merge(effects, { ownerPubkey: toHexPubkey(raw) })
   },
 )

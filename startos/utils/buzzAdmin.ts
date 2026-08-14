@@ -1,13 +1,12 @@
 import { T } from '@start9labs/start-sdk'
-import { storeJson } from './fileModels/store.json'
-import { sdk } from './sdk'
-import { POSTGRES_DB, POSTGRES_USER } from './utils'
+import { storeJson } from '../fileModels/store.json'
+import { sdk } from '../sdk'
+import { POSTGRES_DB, POSTGRES_USER } from './constants'
 
-// Shared by the member-management actions (add/remove/list) to exec
-// buzz-admin -- the CLI bundled in the same image as buzz-relay -- in a
-// short-lived container, per recipe-reset-password.md's documented pattern
-// for admin-CLI actions (SubContainer.withTemp, not attaching to the live
-// daemon's own subcontainer).
+// Used by actions/manageMembers.ts to exec buzz-admin -- the CLI bundled in the
+// same image as buzz-relay -- in a short-lived container, per
+// recipe-reset-password.md's documented pattern for admin-CLI actions
+// (SubContainer.withTemp, not attaching to the live daemon's own subcontainer).
 //
 // Env requirements read directly from buzz-admin's own source
 // (crates/buzz-admin/src/main.rs):
@@ -16,7 +15,11 @@ import { POSTGRES_DB, POSTGRES_USER } from './utils'
 // - add-member/remove-member additionally need BUZZ_RELAY_PRIVATE_KEY (to
 //   sign the updated kind:13534 membership roster) and REDIS_URL (to push
 //   it to live clients). list-members needs neither.
-export async function execBuzzAdmin(effects: T.Effects, args: string[], opts: { write: boolean }): Promise<string> {
+export async function execBuzzAdmin(
+  effects: T.Effects,
+  args: string[],
+  opts: { write: boolean },
+): Promise<string> {
   const store = await storeJson.read().once()
   const pgPassword = store?.pgPassword ?? ''
   const relayUrl = store?.relayUrl ?? ''
@@ -31,10 +34,19 @@ export async function execBuzzAdmin(effects: T.Effects, args: string[], opts: { 
   }
 
   let output = ''
-  await sdk.SubContainer.withTemp(effects, { imageId: 'buzz-relay' }, sdk.Mounts.of(), 'buzz-admin', async sub => {
-    const result = await sub.execFail(['/usr/local/bin/buzz-admin', ...args], { env })
-    output = result.stdout.toString()
-  })
+  await sdk.SubContainer.withTemp(
+    effects,
+    { imageId: 'buzz-relay' },
+    sdk.Mounts.of(),
+    'buzz-admin',
+    async (sub) => {
+      const result = await sub.execFail(
+        ['/usr/local/bin/buzz-admin', ...args],
+        { env },
+      )
+      output = result.stdout.toString()
+    },
+  )
   return output
 }
 
@@ -47,11 +59,13 @@ export async function execBuzzAdmin(effects: T.Effects, args: string[], opts: { 
 //   <64-hex>      member    -                2026-...Z
 // Splitting each data row on whitespace is enough -- hex pubkeys and role
 // names never contain spaces, and we don't need added_by/created_at here.
-export function parseMembers(output: string): { pubkey: string; role: string }[] {
+export function parseMembers(
+  output: string,
+): { pubkey: string; role: string }[] {
   const lines = output.trim().split('\n')
   if (lines.length === 0 || lines[0] === '(no relay members)') return []
   // Skip the header row and the "---" separator row.
-  return lines.slice(2).map(line => {
+  return lines.slice(2).map((line) => {
     const [pubkey, role] = line.trim().split(/\s+/)
     return { pubkey, role }
   })

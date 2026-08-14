@@ -1,5 +1,7 @@
 import { utils } from '@start9labs/start-sdk'
+import { setRelayUrl } from '../actions/setRelayUrl'
 import { storeJson } from '../fileModels/store.json'
+import { i18n } from '../i18n'
 import { sdk } from '../sdk'
 
 export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
@@ -14,5 +16,11 @@ export const seedFiles = sdk.setupOnInit(async (effects, kind) => {
     // BUZZ_RELAY_PRIVATE_KEY / BUZZ_GIT_HOOK_HMAC_SECRET to be generated.
     relayPrivateKey: utils.getDefaultString({ charset: '0-9,a-f', len: 64 }),
     gitHookHmacSecret: utils.getDefaultString({ charset: '0-9,a-f', len: 64 }),
+  })
+
+  // Head of the setup chain: the address is permanent, so it is chosen first
+  // and setRelayUrl raises the owner-pubkey task once it is answered.
+  await sdk.action.createOwnTask(effects, setRelayUrl, 'critical', {
+    reason: i18n('Choose the permanent address/URL of your Buzz relay'),
   })
 })

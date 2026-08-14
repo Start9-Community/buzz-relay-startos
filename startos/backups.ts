@@ -17,7 +17,7 @@ export const { createBackup, restoreInit } = sdk.setupBackups(async () =>
     database: POSTGRES_DB,
     user: POSTGRES_USER,
     password: async () => {
-      const password = await storeJson.read(s => s.pgPassword).once()
+      const password = await storeJson.read((s) => s.pgPassword).once()
       if (!password) throw new Error('No pgPassword found in store.json')
       return password
     },
