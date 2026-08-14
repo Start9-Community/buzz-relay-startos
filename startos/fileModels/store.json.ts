@@ -12,10 +12,10 @@ const shape = z.object({
   gitHookHmacSecret: z.string().catch(''),
   // Owner's Nostr pubkey (64-char hex). Not auto-generated — the user
   // provides it via the set-owner-pubkey action (see actions/setOwnerPubkey.ts,
-  // gated by the critical task in init/watchOwnerPubkey.ts).
+  // gated by the critical task actions/setRelayUrl.ts raises).
   ownerPubkey: z.string().optional().catch(undefined),
   // The address the user has chosen for the relay, pending first start. Set
-  // only by actions/setRelayUrl.ts, which init/watchRelayUrl.ts raises as a
+  // only by actions/setRelayUrl.ts, which init/seedFiles.ts raises as a
   // critical task — deliberately not auto-defaulted, because first start turns
   // this choice into boundRelayUrl below and it cannot be taken back.
   relayUrl: z.string().optional().catch(undefined),
@@ -27,11 +27,14 @@ const shape = z.object({
   // community's members, channels and messages under the old host. Every
   // host-derived env var reads from this field, never from relayUrl.
   boundRelayUrl: z.string().optional().catch(undefined),
-  // Address advertised as the mobile pairing endpoint. Unlike relayUrl this is
-  // freely changeable at any time: buzz-pair-relay binds a port and resolves no
-  // community, so the value only decides what NIP-11 advertises. Auto-defaulted
-  // and drift-repaired by init/watchPairingUrl.ts.
-  pairingUrl: z.string().optional().catch(undefined),
+  // Display names for relay members, written only by actions/manageMembers.ts.
+  // buzz-admin's roster has no name column, so the names are ours alone and
+  // membership itself always comes from `buzz-admin list-members`. A list
+  // rather than a pubkey-keyed object because FileHelper.merge unions object
+  // keys — a removed member's name could then never be dropped.
+  memberNames: z
+    .array(z.object({ pubkey: z.string(), name: z.string() }))
+    .catch([]),
 })
 
 export const storeJson = FileHelper.json(

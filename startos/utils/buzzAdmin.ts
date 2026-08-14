@@ -1,13 +1,12 @@
 import { T } from '@start9labs/start-sdk'
-import { storeJson } from './fileModels/store.json'
-import { sdk } from './sdk'
-import { POSTGRES_DB, POSTGRES_USER } from './utils'
+import { storeJson } from '../fileModels/store.json'
+import { sdk } from '../sdk'
+import { POSTGRES_DB, POSTGRES_USER } from './constants'
 
-// Shared by the member-management actions (add/remove/list) to exec
-// buzz-admin -- the CLI bundled in the same image as buzz-relay -- in a
-// short-lived container, per recipe-reset-password.md's documented pattern
-// for admin-CLI actions (SubContainer.withTemp, not attaching to the live
-// daemon's own subcontainer).
+// Used by actions/manageMembers.ts to exec buzz-admin -- the CLI bundled in the
+// same image as buzz-relay -- in a short-lived container, per
+// recipe-reset-password.md's documented pattern for admin-CLI actions
+// (SubContainer.withTemp, not attaching to the live daemon's own subcontainer).
 //
 // Env requirements read directly from buzz-admin's own source
 // (crates/buzz-admin/src/main.rs):

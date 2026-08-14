@@ -1,0 +1,33 @@
+### buzz-relay: the package's single public entrypoint.
+#
+# buzz-pair-relay is loopback-only by upstream's design and states that the
+# reverse proxy in front of it MUST route only /pair to it and enforce HTTP read
+# timeouts -- it deliberately implements neither itself
+# (crates/buzz-pair-relay/src/lib.rs, "Deployment"). Both of those live here.
+#
+# StartOS terminates TLS at the edge, so this listens on plain HTTP.
+{
+	admin off
+	auto_https off
+	servers {
+		timeouts {
+			# Slowloris mitigation, per the sidecar's deployment notes. Header
+			# reads only: a bodyless WebSocket upgrade is long-lived, so a write
+			# or idle timeout here would sever pairing and relay sessions alike.
+			read_header 10s
+		}
+	}
+}
+
+:80 {
+	# Exact paths, not a /pair* prefix: upstream scopes the sidecar to /pair, and
+	# a prefix would hand it every /pair-anything request as well.
+	@pair path /pair /pair/
+	handle @pair {
+		reverse_proxy 127.0.0.1:5000
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
+}

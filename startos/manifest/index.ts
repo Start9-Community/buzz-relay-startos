@@ -42,6 +42,13 @@ export const manifest = setupManifest({
       source: { dockerTag: 'minio/mc:RELEASE.2025-08-13T08-35-41Z' },
       arch: ['x86_64', 'aarch64'],
     },
+    // The single public entrypoint, fanning /pair out to the pairing sidecar and
+    // everything else to the relay. Caddy specifically because it is what
+    // upstream's own deploy/compose reference uses.
+    caddy: {
+      source: { dockerTag: 'caddy:2-alpine' },
+      arch: ['x86_64', 'aarch64'],
+    },
   },
   // 2 GiB matches the relay's own Helm chart RAM limit and comfortably covers
   // real steady-state usage across all four daemons (see Phase 0 spike notes).

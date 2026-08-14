@@ -37,7 +37,7 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
 ## Applying the bump
 
 1. `startos/manifest/index.ts` — set the `buzz-relay` image's `dockerTag` to
-   `ghcr.io/block/buzz:sha-<short>`. Leave the other four images alone; they
+   `ghcr.io/block/buzz:sha-<short>`. Leave the other five images alone; they
    track their own upstreams.
 2. `startos/versions/current.ts` — set `version` to `<crate version>:0`, or bump
    the revision instead if the crate version has not moved since the last
@@ -45,11 +45,19 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
 3. Re-read the relay's env surface for anything added, removed, or renamed:
    `crates/buzz-relay/src/config.rs` against the env block in `startos/main.ts`.
    A silently-dropped variable will not fail the build.
-4. Re-read `crates/buzz-admin/src/main.rs` if the member actions misbehave — the
+4. Re-read `crates/buzz-pair-relay/src/lib.rs`'s "Deployment" section. It is the
+   contract `assets/Caddyfile` implements — the sidecar stays on loopback, only
+   `/pair` reaches it, and the proxy enforces the read timeout. If upstream
+   changes the path or those responsibilities, the Caddyfile changes with it.
+5. Re-read `crates/buzz-admin/src/main.rs` if Manage Members misbehaves — the
    `list-members` table format is parsed by `parseMembers` in
-   `startos/buzzAdmin.ts`, and a column change there breaks parsing silently.
-5. Install on a real box and exercise it (see `AGENTS.md`). A version bump is not
-   done until the relay reaches healthy and the member actions round-trip.
+   `startos/utils/buzzAdmin.ts`, and a column change there breaks parsing
+   silently.
+   The action also assumes the owner appears as a `list-members` row it must
+   never offer, and that a role change needs a `remove-member` before the
+   `add-member` (upstream inserts `ON CONFLICT … DO NOTHING`).
+6. Install on a real box and exercise it (see `AGENTS.md`). A version bump is not
+   done until the relay reaches healthy and Manage Members round-trips.
 
 ## What must not change in a bump
 

@@ -1,7 +1,7 @@
-import { decodeBech32 } from '../nostr'
-import { i18n } from '../i18n'
 import { storeJson } from '../fileModels/store.json'
+import { i18n } from '../i18n'
 import { sdk } from '../sdk'
+import { toHexPubkey } from '../utils'
 
 const { InputSpec, Value } = sdk
 
@@ -35,9 +35,9 @@ export const setOwnerPubkey = sdk.Action.withInput(
       'Set the Nostr public key that owns and administers this relay. Required before the relay can start.',
     ),
     warning: i18n(
-      'Changing this after the relay has already started is not supported. Stop the service first.',
+      'If the relay is running, saving this restarts it so the new owner takes effect.',
     ),
-    allowedStatuses: 'only-stopped',
+    allowedStatuses: 'any',
     group: null,
     visibility: 'enabled',
   }),
@@ -48,42 +48,14 @@ export const setOwnerPubkey = sdk.Action.withInput(
   },
   async ({ effects, input }) => {
     const raw = input.ownerPubkey.trim()
-    const lower = raw.toLowerCase()
-
-    let hex: string
-    if (lower.startsWith('nsec1')) {
+    if (raw.toLowerCase().startsWith('nsec1')) {
       throw new Error(
         i18n(
           'That looks like a private key (nsec), not a public key. Paste your npub (or its hex public key) instead.',
         ),
       )
-    } else if (lower.startsWith('npub1')) {
-      // decodeBech32's own errors are library diagnostics ("invalid bech32
-      // checksum"); a mistyped npub clears the input pattern and lands here, so
-      // translate at the boundary rather than leaking them into the alert.
-      const decoded = (() => {
-        try {
-          return decodeBech32(lower)
-        } catch {
-          throw new Error(
-            i18n(
-              'That npub is not valid — check it for typos. Every character matters, and the key carries its own checksum, so a single wrong character makes the whole key unreadable.',
-            ),
-          )
-        }
-      })()
-      if (decoded.prefix !== 'npub') {
-        throw new Error(
-          i18n('Expected an npub1... address, got a ${prefix}1... address.', {
-            prefix: decoded.prefix,
-          }),
-        )
-      }
-      hex = decoded.hex
-    } else {
-      hex = lower
     }
 
-    await storeJson.merge(effects, { ownerPubkey: hex })
+    await storeJson.merge(effects, { ownerPubkey: toHexPubkey(raw) })
   },
 )
