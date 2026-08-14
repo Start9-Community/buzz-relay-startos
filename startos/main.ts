@@ -366,55 +366,5 @@ export const main = sdk.setupMain(async ({ effects }) => {
         },
         requires: ['buzz-relay'],
       })
-      // The community lives at exactly one address and nothing in the relay
-      // reports whether clients can actually reach it. Dial the bound address
-      // the way a client would -- through the box's public address, not
-      // loopback -- so a DNS, forwarding, or certificate problem surfaces here
-      // instead of as "Buzz Desktop won't connect" with nothing to look at.
-      .addHealthCheck('client-reachable', {
-        ready: {
-          display: i18n('Reachable by Clients'),
-          fn: async () => {
-            if (!relayHostname)
-              return {
-                result: 'failure',
-                message: i18n('No community address is set'),
-              }
-            const result = await relaySub.exec([
-              'curl',
-              '-sS',
-              '-o',
-              '/dev/null',
-              '--max-time',
-              '10',
-              `https://${relayHostname}/`,
-            ])
-            if (result.exitCode === 0)
-              return {
-                result: 'success',
-                message: i18n('Clients can reach this community'),
-              }
-            // curl 60 is the TLS-verification exit code: the address answers,
-            // but its certificate is not in curl's public trust store -- so
-            // every joining device needs this server's root certificate
-            // installed, which is worth saying plainly rather than reporting
-            // as a generic outage.
-            return result.exitCode === 60
-              ? {
-                  result: 'failure',
-                  message: i18n(
-                    'Reachable, but the certificate is not publicly trusted — every device that joins must install this server’s root certificate first',
-                  ),
-                }
-              : {
-                  result: 'failure',
-                  message: i18n(
-                    'Cannot be reached at its community address — check that the address still resolves and is forwarded to this server',
-                  ),
-                }
-          },
-        },
-        requires: ['buzz-relay'],
-      })
   )
 })

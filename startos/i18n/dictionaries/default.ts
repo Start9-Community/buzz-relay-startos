@@ -89,12 +89,6 @@ const dict = {
   'The Nostr identity that administers this relay.': 73,
   'Mobile Pairing Address': 74,
   'Used only while scanning a QR code to add a phone. Change it with Set Pairing Address/URL.': 75,
-  // main.ts: client-reachability health check
-  'Reachable by Clients': 76,
-  'No community address is set': 77,
-  'Clients can reach this community': 78,
-  'Reachable, but the certificate is not publicly trusted — every device that joins must install this server’s root certificate first': 79,
-  'Cannot be reached at its community address — check that the address still resolves and is forwarded to this server': 80,
 } as const
 
 /**

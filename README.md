@@ -127,7 +127,6 @@ Tasks chain rather than appearing together. `seedFiles` raises **Set Relay Addre
 | `pairing-relay` | Port-listening check on the pairing sidecar's port | Shown to the user (not internal) |
 | **Buzz Relay** | `GET /_readiness` on the relay's internal health port | 60s grace period (first-boot migrations); only checks Postgres/Redis upstream, not S3 -- see next row |
 | **Media & Git Storage** | `GET /minio/health/live`, standalone check gated on the relay being healthy | Added specifically because the relay's own `/_readiness` does not check S3 -- without this, a broken object-storage connection would otherwise be invisible even though it breaks every media upload and git push |
-| **Reachable by Clients** | `curl https://<bound host>/` from inside the relay container, dialing the community address the way a client would | Nothing in the relay reports whether the address it was bound to actually works. `curl` exit 60 (TLS verification) is reported distinctly -- the address answers but its certificate is not publicly trusted, so joining devices need this server's root certificate installed -- as against a plain unreachable result, which points at DNS or forwarding |
 
 ## Dependencies
 
@@ -139,7 +138,6 @@ None. PostgreSQL, Redis, and MinIO are bundled as private sidecars dedicated to 
 
    **The picker offers domains only — public or private.** Buzz itself accepts any host; the narrowing is ours, on the same reasoning `synapse-startos` applies to its equally-permanent `server_name`. Because the binding cannot be revisited, the criterion is a stable identity: a domain is a name its owner controls and resolves on 443, while an mDNS name, a DHCP- or ISP-assigned IP, and StartOS's high external ports all move. The ports are the sharp edge — they are reassigned across reinstalls (observed on one box: `58891 → 58625 → 50306`), and a LAN or IP address carries one in its URL, so a restore onto a different box would strand the community permanently. A private domain is included deliberately: it suits an organisation on a LAN or VPN, and can still carry a real Let's Encrypt certificate via DNS-01.
 
-   Certificate trust is **reported, not pre-judged** — see the `client-reachable` health check below.
 2. **Closed relay only.** No open-registration mode -- membership is owner-invite-only. Upstream supports both.
 3. **The relay's owner pubkey and address are chosen via StartOS actions**, not upstream's interactive setup wizard -- this package never runs it.
 4. **The pairing sidecar's LAN address is unusable with the current mobile pairing client** -- see Network Access and Interfaces.
