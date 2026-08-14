@@ -105,6 +105,7 @@ The LAN `.local` address does not work for `pairing` with Buzz Desktop's own pai
 | **Add Member** (`add-member`) | Register a new Nostr identity on the relay | Only when running | `npub1...`/hex pubkey + role (member/admin) | `buzz-admin`'s confirmation text |
 | **Remove Member** (`remove-member`) | Remove a member (never the owner -- `buzz-admin` itself refuses that) | Only when running | Select from current members | `buzz-admin`'s confirmation text |
 | **List Members** (`list-members`) | Show current membership and roles | Only when running | -- | Current roster |
+| **Connection Information** (`connection-info`) | Show the community address (with QR), owner pubkey, and pairing address in one place. Read-only, repeat-safe | Any status | -- | The three values, copyable |
 
 Add/Remove/List Member all wrap `buzz-admin` (bundled in the same image) via `sdk.SubContainer.withTemp()`. `buzz-admin` resolves which community it is acting on from `RELAY_URL`'s host, so these actions operate on the community the relay bound at first start.
 

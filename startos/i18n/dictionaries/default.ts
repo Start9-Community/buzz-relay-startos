@@ -78,6 +78,17 @@ const dict = {
   "That looks like a private key (nsec), not a public key. Paste the member's npub (or its hex public key) instead.": 63,
   "This relay's community was created under ${bound} and upstream Buzz has no way to move it. Pointing the relay at ${chosen} would leave it serving a new, empty community while the original members, channels and messages stayed behind. To use a different address you must reinstall and start over.": 64,
   'That npub is not valid — check it for typos. Every character matters, and the key carries its own checksum, so a single wrong character makes the whole key unreadable.': 65,
+  // actions/connectionInfo.ts
+  'Connection Information': 66,
+  'Show the address to give people joining this community, and the owner identity that administers it.': 67,
+  'This relay has no address yet. Complete the Set Relay Address/URL task first.': 68,
+  'In Buzz Desktop choose "Join a Community" and enter the community address below.': 69,
+  'Community Address': 70,
+  'Permanent. This community exists only at this address.': 71,
+  'Owner Public Key': 72,
+  'The Nostr identity that administers this relay.': 73,
+  'Mobile Pairing Address': 74,
+  'Used only while scanning a QR code to add a phone. Change it with Set Pairing Address/URL.': 75,
 } as const
 
 /**

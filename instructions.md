@@ -31,6 +31,7 @@ Scanning a QR code from the Buzz mobile app to pair a phone uses a separate addr
 
 ### Actions
 
+- **Connection Information** -- shows your community address, as text and as a QR code, alongside your owner key. This is what to hand anyone joining.
 - **Set Relay Owner** -- change the relay's owner identity.
 - **Set Relay Address/URL** -- pick the address Buzz Desktop and invite links use. Only settable before the relay first starts; afterward it will refuse to change.
 - **Set Pairing Address/URL** -- pick which address the mobile app should use when scanning a QR code to pair. Change this anytime.
