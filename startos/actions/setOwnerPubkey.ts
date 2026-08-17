@@ -27,6 +27,10 @@ const inputSpec = InputSpec.of({
   }),
 })
 
+// No `only-stopped` and no `effects.restart()`: `ownerPubkey` is inside main's
+// `.const()` store projection, so writing it invalidates that context and re-runs
+// setupMain with the new RELAY_OWNER_PUBKEY. That reactive path works from an
+// action's context via a filesystem watch; an explicit restart would double up.
 export const setOwnerPubkey = sdk.Action.withInput(
   'set-owner-pubkey',
   async () => ({

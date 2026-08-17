@@ -29,7 +29,6 @@
 - [Health Checks](#health-checks)
 - [Backups and Restore](#backups-and-restore)
 - [Limitations and Differences](#limitations-and-differences)
-- [Troubleshooting](#troubleshooting)
 - [Quick Reference for AI Consumers](#quick-reference-for-ai-consumers)
 
 ---
@@ -173,18 +172,6 @@ The dump authenticates with `pgPassword` from `store.json`, so the two halves ar
 2. **Single-owner and closed by design.** One owner pubkey, and membership is managed only through the Manage Members action.
 3. **The datastores are private.** PostgreSQL, Redis, and MinIO are sidecars of this service and cannot be shared with, or substituted by, other StartOS services.
 4. **Member display names are local.** They live in `store.json`, not upstream, so they do not follow members to another relay.
-
-## Troubleshooting
-
-Nearly every failure specific to this package traces to one of two things: the setup tasks not being completed, or the relay's bound address having moved.
-
-| Symptom                                                     | Check                                               | Resolution                                                                          |
-| ----------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Service will not start; only a task is shown                | Are `relayUrl` and `ownerPubkey` both set?          | Complete both critical tasks — this is the intended install flow, not a fault       |
-| Relay is empty after changing its address                   | Does `boundRelayUrl` differ from `relayUrl`?        | The original community is stranded under the old host; restore the previous address |
-| Service restarts repeatedly with no failing check displayed | Which subcontainer is erroring in the service logs? | An internal (`display: null`) sidecar check is failing — diagnose from the logs     |
-| Members present in the app do not show names                | Were they added outside Manage Members?             | Names come from `store.json`; re-run Manage Members to set them                     |
-| Media or git objects missing after restore                  | Was the `main` volume included in the backup?       | MinIO objects live on `main`; a `db`-only restore recovers messages but not media   |
 
 ---
 
