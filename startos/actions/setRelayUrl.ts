@@ -25,7 +25,7 @@ const inputSpec = InputSpec.of({
         (obj: Record<string, string>, url: string) => ({ ...obj, [url]: url }),
         {},
       ),
-      default: domains[0] || '',
+      default: null,
     }
   }),
 })

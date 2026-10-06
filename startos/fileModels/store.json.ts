@@ -1,7 +1,7 @@
 import { FileHelper, z } from '@start9labs/start-sdk'
 import { sdk } from '../sdk'
 
-const shape = z.object({
+const shape = z.looseObject({
   // Internal secrets, auto-generated at install (see init/seedFiles.ts).
   // Never shown to the user.
   pgPassword: z.string().catch(''),
@@ -33,7 +33,7 @@ const shape = z.object({
   // rather than a pubkey-keyed object because FileHelper.merge unions object
   // keys — a removed member's name could then never be dropped.
   memberNames: z
-    .array(z.object({ pubkey: z.string(), name: z.string() }))
+    .array(z.looseObject({ pubkey: z.string(), name: z.string() }))
     .catch([]),
 })
 
