@@ -12,7 +12,7 @@ const dict = {
   'Buzz Relay is not ready': 9,
   // actions/setOwnerPubkey.ts, actions/setRelayUrl.ts
   'Owner Nostr Public Key': 10,
-  "The relay owner's Nostr identity: paste your npub (starts with npub1) or its 64-character hex public key. This is the only identity that can administer this relay and approve new members.": 11,
+  "The relay owner's Nostr identity: paste your npub (starts with npub1) or its 64-character hex public key. The owner is always a member of the relay and cannot be removed.": 11,
   'Must be an npub1... address or a 64-character hex key': 12,
   'Set Relay Owner': 13,
   'Set the Nostr public key that owns and administers this relay. Required before the relay can start.': 14,
@@ -48,7 +48,7 @@ const dict = {
   'Nostr Public Key': 82,
   "This person's Nostr identity. Paste their npub (starts with npub1) or its 64-character hex public key.": 83,
   Role: 40,
-  'Admins can add and remove other members; members can only read and write.': 41,
+  '- Member: reads and writes on the relay\n- Admin: also adds and removes other members': 41,
   Member: 42,
   Admin: 43,
   // Thrown out of action handlers -- StartOS renders these as the user's alert,

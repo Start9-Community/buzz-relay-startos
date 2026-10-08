@@ -56,7 +56,7 @@ const inputSpec = InputSpec.of({
           role: Value.select({
             name: i18n('Role'),
             description: i18n(
-              'Admins can add and remove other members; members can only read and write.',
+              '- Member: reads and writes on the relay\n- Admin: also adds and removes other members',
             ),
             default: 'member',
             values: {

@@ -18,19 +18,23 @@ Freshly scaffolded? Work the
 guide page, not a file in this repo — read it, don't copy it in.
 
 Keep `README.md` (technical reference for an AI support or administering agent) and
-`instructions.md` (end-user docs) in sync with your changes.
+`instructions.md` (end-user docs) in sync with your changes. This file restates neither:
+whoever changes the package has both, so it carries only what they don't — repo mechanics,
+a change that looks right and is not, where the next thing gets added, a naming trap, a
+build or test invocation particular to this repo.
 
-**Bugs and feature requests are GitHub issues on this repo** — file them as you find them.
+**Fix a defect you spot rather than reporting it** — you have the package open and the
+context to be sure. File **a GitHub issue on this repo** only when the call isn't yours to
+make: you can't pin the cause down, two defensible fixes exist, or it's too large to ride on
+the work in hand. An open issue is a report, not a queue — implement one when you're asked
+to or when it's labelled `Approved`, then close it with `Closes #<n>`.
+
 Don't record work in the repo instead: no `TODO.md`, no `NOTES.md`, no `PLAN.md`. What you
 verified, tried, and decided belongs in the commit message and the PR body.
 
 ## This repo
 
-- **Caddy is the only bound port, and `buzz-pair-relay` must stay on loopback.** `assets/Caddyfile` routes `/pair` and `/pair/` to the pairing sidecar on `127.0.0.1:5000` and everything else to the relay on `127.0.0.1:3000`; StartOS binds Caddy alone. Both `BUZZ_BIND_ADDR` and `BUZZ_PAIR_RELAY_BIND_ADDR` are loopback and must stay that way. This is upstream's requirement, not our preference: `crates/buzz-pair-relay/src/lib.rs` says the sidecar "binds **loopback only** and MUST run behind a reverse proxy" that routes only `/pair`, terminates TLS, and enforces read timeouts, because it runs with no auth or persistence and "does not enforce path restrictions or pre-upgrade connection limits" itself. An earlier revision bound it `0.0.0.0:5000` on its own public interface — never do that again. Keep the matcher exact (`path /pair /pair/`); `/pair*` would hand the sidecar every `/pair`-anything request. StartOS terminates TLS, so the Caddyfile stays plain HTTP with `auto_https off` and `admin off`, and `caddy fmt`/`caddy validate` it after any edit — a bad Caddyfile fails at daemon start, not at build.
-- **One binding is also what keeps a public domain working.** StartOS scopes a public domain to the binding it was added to and auto-disables it on every sibling (`start-core`, `net/host/address.rs` → `reconcile_public_domain_on_sibling`), so a second binding silently loses the domain. Don't add one; put new endpoints behind Caddy as paths.
-- **`buzz-relay` needs `/data/git` owned by uid 1000, and `idmap` does not achieve it.** The image runs as non-root `buzz` (uid/gid 1000). `idmap: [{fromId: 0, toId: 1000}]` on the mount is what the SDK docs prescribe for this and was **tested on a real box with an identical crash before and after**. The working fix is the `chown-git` oneshot (`chown -R 1000:1000 /data/git`, as root, gated ahead of the relay), matching `ghost-startos`/`nextcloud-startos`. Don't reach for `idmap` again without a real install to test against. Every other image self-heals its own ownership — don't add the oneshot defensively elsewhere.
-- **Redis is persisted, not ephemeral.** The generic Redis/Valkey cache recipe runs it volumeless with `--appendonly no`; Buzz's own `deploy/compose/compose.yml` does the opposite, because pub/sub and presence state are expected to survive a restart. Don't "simplify" it back.
-- **`/_readiness` checks Postgres and Redis only, never S3.** That is why the MinIO daemon's own readiness check is the one sidecar with a `display` — without it a broken object-storage connection is invisible while every media upload and git push fails. Don't add a second check for it: a standalone one hitting the identical URL used to exist alongside it.
-- **There is no browsable web UI; `/` returning 404 is upstream's routing, not a bug.** `router.rs` binds `/` to `nip11_or_ws_handler`, which serves NIP-11 or a WebSocket upgrade and 404s a plain browser GET. The `/srv/buzz/web` bundle is an SPA _fallback_ for invite-link paths and `/assets/` only — `/invite/<token>` returns 200. Keep the interface `type: 'api'`; don't chase the 404 or add a launch target.
-- **Everything shared lives under `startos/utils/`, reached through the `utils` barrel** — `constants.ts` (ports, database and bucket names), `buzzAdmin.ts` (the admin-CLI exec and its `list-members` parser), `nostr.ts`, and `pubkey.ts`. Import from `'../utils'`, never from a file inside it; only its own siblings do that, and only to avoid importing the barrel from within itself.
-- **`utils/nostr.ts` is the package's NIP-19 decoder; `utils/pubkey.ts` is the action boundary over it.** `nostr.ts`'s errors are library diagnostics ("invalid bech32 checksum"), so any action taking a pubkey goes through `toHexPubkey`, which raises translated copy instead — except the nsec rejection, whose wording names whose key it is and so stays with each caller. `buzz-admin` parses npub and hex equally well, but `manage-members` still normalizes: it diffs against `list-members`, which reports hex, and keys its display names the same way.
+- **Keep every process but Caddy on loopback, behind the one binding.** `buzz-pair-relay` has no auth and leaves path restriction and read timeouts to the proxy, so keep the matcher exact (`path /pair /pair/`) and `caddy validate` `assets/Caddyfile` after any edit. Add a new endpoint as a Caddy path, never a second binding: StartOS disables a public domain on every sibling of the binding it was added to.
+- **Fix `/data/git` ownership with the `chown-git` oneshot, not an `idmap` mount** — `idmap` was tested on a box and left the relay crashing the same way.
+- **Keep Redis on a volume with `--appendonly yes`**, not the volumeless cache recipe — upstream expects pub/sub and presence state to survive a restart.
+- **Normalize every pubkey an action takes with `toHexPubkey`** — it turns the NIP-19 decoder's diagnostics into translated copy, and `list-members` reports hex.

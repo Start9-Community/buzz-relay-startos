@@ -37,10 +37,10 @@
 
 Four upstream images, unmodified. The relay's datastores are bundled rather than declared as StartOS dependencies, so everything below runs inside this one service.
 
-| Property      | Value                                                    |
-| ------------- | -------------------------------------------------------- |
-| Images        | `ghcr.io/block/buzz`, `postgres`, `redis`, `minio/minio` |
-| Architectures | x86_64, aarch64                                          |
+| Property      | Value                                                   |
+| ------------- | ------------------------------------------------------- |
+| Images        | `ghcr.io/block/buzz`, `postgres`, `redis`, `pgsty/silo` |
+| Architectures | x86_64, aarch64                                         |
 
 | Subcontainer    | Image        | Purpose                                                          |
 | --------------- | ------------ | ---------------------------------------------------------------- |
@@ -50,6 +50,8 @@ Four upstream images, unmodified. The relay's datastores are bundled rather than
 | `redis`         | `redis`      | Private cache sidecar                                            |
 | `minio`         | `minio`      | Private object storage for media and git objects                 |
 | `caddy`         | `caddy`      | Reverse proxy; the only subcontainer bound to the published port |
+
+Object storage is Silo (`pgsty/silo`, with `pgsty/mc` for setup), the MinIO fork upstream's own deployments use; it reads MinIO's data directory in place, and the image ids, subcontainers, volume subpath and `MINIO_*` settings keep their `minio` names.
 
 Two oneshots run before the relay: `minio-init` (in a temporary `minio-mc` subcontainer) creates the media bucket, and `chown-git` fixes ownership of the persistent git path.
 
@@ -128,6 +130,7 @@ Sets the owner's Nostr public key. Run it when prompted by its task, or to hand 
 
 **Not user-facing in the Actions list.** It is `visibility: 'hidden'` and reachable only through the critical task that raises it, so a user is never told to go find it. It is also `only-stopped`, because the value it writes is consumed at first start.
 
+- **The form preselects no address**, so the permanent identity is always a deliberate choice.
 - **What it changes:** `relayUrl` in `store.json`, which first start converts into `boundRelayUrl`.
 - **Repeat safety:** effectively one-way. Changing it after the relay has bound does not move the community — see [File Models](#file-models).
 
@@ -155,6 +158,8 @@ Six daemons report readiness, but only two are shown to the user. The rest pass 
 | `pairing-relay` | — internal            | port `5000` listening                 | 30s          |
 | `caddy`         | — internal            | port `80` listening                   | 30s          |
 
+"Media & Git Storage" is shown because the relay's own `/_readiness` covers PostgreSQL and Redis but not object storage, so without it a broken MinIO would be invisible while every upload and git push fails.
+
 **A user reporting "no health checks shown but the service is restarting"** is seeing an internal check fail — the service page will not name which. Read the service logs and identify the subcontainer from them, since the internal checks are invisible by design.
 
 ## Backups and Restore
@@ -172,6 +177,7 @@ The dump authenticates with `pgPassword` from `store.json`, so the two halves ar
 2. **Single-owner and closed by design.** One owner pubkey, and membership is managed only through the Manage Members action.
 3. **The datastores are private.** PostgreSQL, Redis, and MinIO are sidecars of this service and cannot be shared with, or substituted by, other StartOS services.
 4. **Member display names are local.** They live in `store.json`, not upstream, so they do not follow members to another relay.
+5. **No browsable web page.** A browser opening the relay's address gets a 404: `/` serves only the NIP-11 document and WebSocket upgrades, and the bundled web assets answer invite links (`/invite/<token>`) and `/assets/`. The interface is `type: 'api'` for that reason; members connect with Buzz Desktop or another Nostr client.
 
 ---
 
@@ -179,7 +185,7 @@ The dump authenticates with `pgPassword` from `store.json`, so the two halves ar
 
 ```yaml
 package_id: buzz-relay
-image: ghcr.io/block/buzz # plus postgres, redis, minio/minio
+image: ghcr.io/block/buzz # plus postgres, redis, pgsty/silo
 architectures:
   - x86_64
   - aarch64

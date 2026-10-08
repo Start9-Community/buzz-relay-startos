@@ -9,7 +9,7 @@ const inputSpec = InputSpec.of({
   ownerPubkey: Value.text({
     name: i18n('Owner Nostr Public Key'),
     description: i18n(
-      "The relay owner's Nostr identity: paste your npub (starts with npub1) or its 64-character hex public key. This is the only identity that can administer this relay and approve new members.",
+      "The relay owner's Nostr identity: paste your npub (starts with npub1) or its 64-character hex public key. The owner is always a member of the relay and cannot be removed.",
     ),
     required: true,
     masked: false,
