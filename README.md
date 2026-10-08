@@ -37,10 +37,10 @@
 
 Four upstream images, unmodified. The relay's datastores are bundled rather than declared as StartOS dependencies, so everything below runs inside this one service.
 
-| Property      | Value                                                    |
-| ------------- | -------------------------------------------------------- |
-| Images        | `ghcr.io/block/buzz`, `postgres`, `redis`, `minio/minio` |
-| Architectures | x86_64, aarch64                                          |
+| Property      | Value                                                   |
+| ------------- | ------------------------------------------------------- |
+| Images        | `ghcr.io/block/buzz`, `postgres`, `redis`, `pgsty/silo` |
+| Architectures | x86_64, aarch64                                         |
 
 | Subcontainer    | Image        | Purpose                                                          |
 | --------------- | ------------ | ---------------------------------------------------------------- |
@@ -50,6 +50,8 @@ Four upstream images, unmodified. The relay's datastores are bundled rather than
 | `redis`         | `redis`      | Private cache sidecar                                            |
 | `minio`         | `minio`      | Private object storage for media and git objects                 |
 | `caddy`         | `caddy`      | Reverse proxy; the only subcontainer bound to the published port |
+
+Object storage is Silo (`pgsty/silo`, with `pgsty/mc` for setup), the MinIO fork upstream's own deployments use; it reads MinIO's data directory in place, and the image ids, subcontainers, volume subpath and `MINIO_*` settings keep their `minio` names.
 
 Two oneshots run before the relay: `minio-init` (in a temporary `minio-mc` subcontainer) creates the media bucket, and `chown-git` fixes ownership of the persistent git path.
 
@@ -183,7 +185,7 @@ The dump authenticates with `pgPassword` from `store.json`, so the two halves ar
 
 ```yaml
 package_id: buzz-relay
-image: ghcr.io/block/buzz # plus postgres, redis, minio/minio
+image: ghcr.io/block/buzz # plus postgres, redis, pgsty/silo
 architectures:
   - x86_64
   - aarch64

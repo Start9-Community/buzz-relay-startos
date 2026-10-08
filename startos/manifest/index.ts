@@ -34,12 +34,12 @@ export const manifest = setupManifest({
       arch: ['x86_64', 'aarch64'],
     },
     minio: {
-      source: { dockerTag: 'minio/minio:RELEASE.2025-09-07T16-13-09Z' },
+      source: { dockerTag: 'pgsty/silo:RELEASE.2026-09-16T00-00-00Z' },
       arch: ['x86_64', 'aarch64'],
     },
     // Only used for the one-shot bucket-creation daemon, never the long-running server.
     'minio-mc': {
-      source: { dockerTag: 'minio/mc:RELEASE.2025-08-13T08-35-41Z' },
+      source: { dockerTag: 'pgsty/mc:RELEASE.2026-09-16T00-00-00Z' },
       arch: ['x86_64', 'aarch64'],
     },
     // The single public entrypoint, fanning /pair out to the pairing sidecar and
