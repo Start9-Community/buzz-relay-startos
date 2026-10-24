@@ -22,7 +22,9 @@ export const manifest = setupManifest({
     // with a fresh test pass -- and move the manifest version to match the
     // buzz-relay crate version at the new commit (see UPDATING.md).
     'buzz-relay': {
-      source: { dockerTag: 'ghcr.io/block/buzz:sha-4749bc7' },
+      source: {
+        dockerBuild: { buildArgs: { IMAGE: 'ghcr.io/block/buzz:sha-9e8c9fc' } },
+      },
       arch: ['x86_64', 'aarch64'],
     },
     postgres: {

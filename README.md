@@ -35,12 +35,12 @@
 
 ## Image and Container Runtime
 
-Four upstream images, unmodified. The relay's datastores are bundled rather than declared as StartOS dependencies, so everything below runs inside this one service.
+Four upstream images, unmodified except for the relay's, whose CA store is upgraded by the root `Dockerfile`, a temporary layer that comes out once upstream ships an image built on a fixed store. The relay's datastores are bundled rather than declared as StartOS dependencies, so everything below runs inside this one service.
 
-| Property      | Value                                                   |
-| ------------- | ------------------------------------------------------- |
-| Images        | `ghcr.io/block/buzz`, `postgres`, `redis`, `pgsty/silo` |
-| Architectures | x86_64, aarch64                                         |
+| Property      | Value                                                                       |
+| ------------- | --------------------------------------------------------------------------- |
+| Images        | `ghcr.io/block/buzz` + root `Dockerfile`, `postgres`, `redis`, `pgsty/silo` |
+| Architectures | x86_64, aarch64                                                             |
 
 | Subcontainer    | Image        | Purpose                                                          |
 | --------------- | ------------ | ---------------------------------------------------------------- |
@@ -185,7 +185,7 @@ The dump authenticates with `pgPassword` from `store.json`, so the two halves ar
 
 ```yaml
 package_id: buzz-relay
-image: ghcr.io/block/buzz # plus postgres, redis, pgsty/silo
+image: ghcr.io/block/buzz + root Dockerfile (CA store upgrade) # plus postgres, redis, pgsty/silo
 architectures:
   - x86_64
   - aarch64
