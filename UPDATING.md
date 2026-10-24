@@ -13,8 +13,8 @@ separately and both have to move.
 
 ## Determining the upstream version
 
-The current pin is the `dockerTag` of the `buzz-relay` image in
-`startos/manifest/index.ts`.
+The current pin is the `IMAGE` build arg of the `buzz-relay` image in
+`startos/manifest/index.ts`, which the root `Dockerfile` builds on.
 
 Pick the commit you intend to ship — usually the newest one on `main` that has a
 published image — and read the crate version at that commit:
@@ -36,9 +36,9 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
 
 ## Applying the bump
 
-1. `startos/manifest/index.ts` — set the `buzz-relay` image's `dockerTag` to
-   `ghcr.io/block/buzz:sha-<short>`. Leave the other five images alone; they
-   track their own upstreams.
+1. `startos/manifest/index.ts` — set the `buzz-relay` image's `IMAGE` build
+   arg to `ghcr.io/block/buzz:sha-<short>`. Leave the other five images alone;
+   they track their own upstreams.
 2. `startos/versions/current.ts` — set `version` to `<crate version>:0`, or bump
    the revision instead if the crate version has not moved since the last
    release. Write release notes in all five locales.

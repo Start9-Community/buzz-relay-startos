@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.2.1:2',
+  version: '0.2.1:3',
   releaseNotes: {
     en_US:
-      'Restarting Buzz Relay while it is still starting stops every process of the previous run.',
+      'Updates Buzz Relay to the latest upstream build and stops trusting certificates from a compromised certificate authority (eMudhra).',
     es_ES:
-      'Reiniciar Buzz Relay mientras aún se está iniciando detiene todos los procesos de la ejecución anterior.',
+      'Actualiza Buzz Relay a la última compilación upstream y deja de confiar en los certificados de una autoridad de certificación comprometida (eMudhra).',
     de_DE:
-      'Ein Neustart von Buzz Relay, während es noch startet, beendet alle Prozesse des vorherigen Laufs.',
+      'Aktualisiert Buzz Relay auf den neuesten Upstream-Build und vertraut Zertifikaten einer kompromittierten Zertifizierungsstelle (eMudhra) nicht mehr.',
     pl_PL:
-      'Ponowne uruchomienie Buzz Relay w trakcie uruchamiania zatrzymuje wszystkie procesy poprzedniego uruchomienia.',
+      'Aktualizuje Buzz Relay do najnowszej wersji upstream i przestaje ufać certyfikatom przejętego urzędu certyfikacji (eMudhra).',
     fr_FR:
-      "Redémarrer Buzz Relay pendant son démarrage arrête tous les processus de l'exécution précédente.",
+      "Met à jour Buzz Relay vers la dernière version upstream et ne fait plus confiance aux certificats d'une autorité de certification compromise (eMudhra).",
   },
   migrations: {
     up: async ({ effects }) => {},
