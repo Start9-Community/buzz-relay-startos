@@ -41,7 +41,7 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
    they track their own upstreams.
 2. `startos/versions/current.ts` — set `version` to `<crate version>:0`, or bump
    the revision instead if the crate version has not moved since the last
-   release. Write release notes in all five locales.
+   release.
 3. Re-read the relay's env surface for anything added, removed, or renamed:
    `crates/buzz-relay/src/config.rs` against the env block in `startos/main.ts`.
    A silently-dropped variable will not fail the build.
@@ -56,8 +56,6 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
    The action also assumes the owner appears as a `list-members` row it must
    never offer, and that a role change needs a `remove-member` before the
    `add-member` (upstream inserts `ON CONFLICT … DO NOTHING`).
-6. Install on a real box and exercise it (see `AGENTS.md`). A version bump is not
-   done until the relay reaches healthy and Manage Members round-trips.
 
 ## What must not change in a bump
 
