@@ -57,6 +57,25 @@ curl -sI -H "Authorization: Bearer $TOKEN" \
    never offer, and that a role change needs a `remove-member` before the
    `add-member` (upstream inserts `ON CONFLICT … DO NOTHING`).
 
+## Schema migrations that stop startup
+
+With `BUZZ_AUTO_MIGRATE=true` the relay applies every new file in `migrations/`
+at startup, and some refuse to run against existing data — the relay then
+crash-loops. Diff the two commits' `migrations/` listings (the contents API at
+each ref; GitHub's compare truncates its file list on a large range) and read
+every new file for a `RAISE EXCEPTION`. A fresh install never exercises these.
+
+Past `sha-9e8c9fc`, each of these needs package-side work before the pin can move:
+
+- `0076`, `0078`, `0081` refuse a non-empty table whose new index was not
+  prebuilt. `0078` covers `channel_members`, so every relay in use hits it.
+  Build each index with `CREATE INDEX CONCURRENTLY` first, as upstream's
+  `docs/artifact-sync-deployment.md` and `docs/profile-search.md` describe.
+- `0083` refuses duplicate case-insensitive listed channel names, which
+  `sha-9e8c9fc` permits. It needs upstream's staged upgrade in
+  `docs/channel-name-uniqueness-deployment.md`: ship a release containing #8782
+  first, rename duplicates through the relay, confirm none remain.
+
 ## What must not change in a bump
 
 The relay creates its community under `RELAY_URL`'s host and cannot move it, so
