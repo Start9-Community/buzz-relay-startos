@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.2.1:3',
+  version: '0.2.1:4',
   releaseNotes: {
     en_US:
-      'Updates Buzz Relay to the latest upstream build and stops trusting certificates from a compromised certificate authority (eMudhra).',
+      'Improves service reliability and health-check responsiveness. Requires StartOS 0.4.2 or newer.',
     es_ES:
-      'Actualiza Buzz Relay a la última compilación upstream y deja de confiar en los certificados de una autoridad de certificación comprometida (eMudhra).',
+      'Mejora la fiabilidad del servicio y la respuesta de las comprobaciones de estado. Requiere StartOS 0.4.2 o posterior.',
     de_DE:
-      'Aktualisiert Buzz Relay auf den neuesten Upstream-Build und vertraut Zertifikaten einer kompromittierten Zertifizierungsstelle (eMudhra) nicht mehr.',
+      'Verbessert die Zuverlässigkeit des Dienstes und die Reaktionszeit der Zustandsprüfungen. Erfordert StartOS 0.4.2 oder neuer.',
     pl_PL:
-      'Aktualizuje Buzz Relay do najnowszej wersji upstream i przestaje ufać certyfikatom przejętego urzędu certyfikacji (eMudhra).',
+      'Poprawia niezawodność usługi i szybkość sprawdzania stanu. Wymaga StartOS 0.4.2 lub nowszego.',
     fr_FR:
-      "Met à jour Buzz Relay vers la dernière version upstream et ne fait plus confiance aux certificats d'une autorité de certification compromise (eMudhra).",
+      'Améliore la fiabilité du service et la réactivité des contrôles de santé. Nécessite StartOS 0.4.2 ou une version ultérieure.',
   },
   migrations: {
     up: async ({ effects }) => {},
